@@ -4,3 +4,6 @@
 /cpr_index.pkl
 /cpr_index.faiss
 /tests
+/.venv
+.env
+/.env
