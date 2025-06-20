@@ -27,7 +27,15 @@ const FlowChart: React.FC<FlowChartProps> = ({ chartData, onNodeClick, citations
   useEffect(() => {
     if (chartData && chartRef.current) {
       setIsLoading(true);
-      mermaid.render('flowchart', chartData).then(({ svg }) => {
+
+      // Clean up the chart data from markdown fences
+      let cleanChartData = chartData.trim();
+      const match = /^```(?:mermaid)?\s*\n(.*)\n\s*```$/s.exec(cleanChartData);
+      if (match && match[1]) {
+        cleanChartData = match[1].trim();
+      }
+
+      mermaid.render('flowchart', cleanChartData).then(({ svg }) => {
         if (chartRef.current) {
           chartRef.current.innerHTML = svg;
           

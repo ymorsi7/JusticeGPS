@@ -279,7 +279,12 @@ async def generate_structured_data(prompt: str, is_json: bool = True):
                 response_text = f'[{response_text.strip()}]'
                 
             return json.loads(response_text)
-        # For mermaid chart, just return the raw text
+        
+        # For mermaid chart, strip markdown fences
+        mermaid_match = re.search(r'```(?:mermaid)?\n(.*?)\n```', response_text, re.DOTALL)
+        if mermaid_match:
+            response_text = mermaid_match.group(1)
+
         return response_text.strip()
     except Exception as e:
         print(f"Error generating structured data: {e}")
