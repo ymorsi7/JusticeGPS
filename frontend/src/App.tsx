@@ -344,174 +344,72 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Response Section */}
-        {response && (
-          <div className="space-y-8 animate-fade-in-up animation-delay-200">
-            {/* Main Answer */}
-            <div className="glass-card p-8 card-hover">
-              <div className="flex items-start justify-between mb-6">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-gradient-success rounded-lg flex items-center justify-center">
+        {/* Main Content */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column */}
+          <div className="lg:col-span-2 space-y-8">
+            {response && (
+              <div className="glass-card p-6 animate-fade-in-up">
+                <div className="flex items-center mb-4">
+                  <div className="w-10 h-10 bg-gradient-primary rounded-lg flex items-center justify-center mr-4">
                     <span className="text-white text-lg">💡</span>
                   </div>
-                  <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
-                    Answer
-                  </h2>
+                  <h2 className="text-xl font-bold gradient-text">Answer</h2>
                 </div>
+                <p className="text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+                  {response.answer}
+                </p>
                 <ConfidenceBar confidence={response.confidence} />
               </div>
-              
-              <div className="prose prose-lg max-w-none prose-slate dark:prose-invert">
-                <div 
-                  className="text-slate-700 dark:text-slate-200 leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: response.answer.replace(/\n/g, '<br>') }} 
-                />
+            )}
+
+            {response && response.flowchart && (
+              <div className="glass-card p-6 animate-fade-in-up animation-delay-100">
+                <h2 className="text-xl font-bold gradient-text mb-4">Procedural Flowchart</h2>
+                <FlowChart chartDefinition={response.flowchart} />
               </div>
-              
-              {/* Speech Output */}
-              <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-600">
-                <SpeechOutput 
-                  text={response.answer.replace(/<[^>]*>/g, '')} 
-                  autoPlay={response.confidence >= 90}
-                />
+            )}
+            
+            {mode === 'arbitration_strategy' && response && response.precedents && response.precedents.length > 0 && (
+              <div className="glass-card p-6 animate-fade-in-up animation-delay-200">
+                <h2 className="text-xl font-bold gradient-text mb-4">Precedent Explorer</h2>
+                <InteractivePrecedentExplorer precedents={response.precedents} />
               </div>
-            </div>
+            )}
 
-            {/* Mode-specific Components */}
-            {mode === 'civil_procedure' ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Interactive Flowchart */}
-                <div className="animate-fade-in-up animation-delay-300">
-                  <div className="glass-card p-6 h-full">
-                    <h3 className="text-xl font-semibold mb-4 text-slate-800 dark:text-slate-100 flex items-center space-x-2">
-                      <span>🔄</span>
-                      <span>Process Flow</span>
-                    </h3>
-                    <FlowChart
-                      chartData={response.flowchart}
-                      citations={response.citations}
-                      onNodeClick={(nodeId, citation) => {
-                        console.log('Clicked node:', nodeId, 'Citation:', citation);
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Case Timeline */}
-                <div className="animate-fade-in-up animation-delay-400">
-                  <div className="glass-card p-6 h-full">
-                    <h3 className="text-xl font-semibold mb-4 text-slate-800 dark:text-slate-100 flex items-center space-x-2">
-                      <span>📅</span>
-                      <span>Case Timeline</span>
-                    </h3>
-                    <CaseTimeline events={timelineEvents} totalDays={365} />
-                  </div>
-                </div>
-
-                {/* Progress Tracker */}
-                <div className="animate-fade-in-up animation-delay-500">
-                  <div className="glass-card p-6 h-full">
-                    <h3 className="text-xl font-semibold mb-4 text-slate-800 dark:text-slate-100 flex items-center space-x-2">
-                      <span>📊</span>
-                      <span>Progress Tracker</span>
-                    </h3>
-                    <ProgressTracker
-                      steps={progressSteps}
-                      onStepClick={(step) => {
-                        console.log('Clicked step:', step);
-                      }}
-                      onFormClick={(formLink) => {
-                        console.log('Clicked form:', formLink);
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Form Auto-Fill Preview */}
-                <div className="animate-fade-in-up animation-delay-500">
-                  <div className="glass-card p-6 h-full">
-                    <h3 className="text-xl font-semibold mb-4 text-slate-800 dark:text-slate-100 flex items-center space-x-2">
-                      <span>📝</span>
-                      <span>Form Preview</span>
-                    </h3>
-                    <FormAutoFillPreview
-                      formType="N1"
-                      fields={formFields}
-                      onFieldChange={(fieldId, value) => {
-                        setFormFields(prev => 
-                          prev.map(field => 
-                            field.id === fieldId ? { ...field, value } : field
-                          )
-                        );
-                      }}
-                      onDownload={() => {
-                        console.log('Downloading form...');
-                      }}
-                    />
-                  </div>
-                </div>
+            {response && response.timelineEvents && response.timelineEvents.length > 0 && (
+              <div className="glass-card p-6 animate-fade-in-up animation-delay-200">
+                <h2 className="text-xl font-bold gradient-text mb-4">Case Timeline</h2>
+                <CaseTimeline events={response.timelineEvents} />
               </div>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Radar Chart */}
-                <div className="animate-fade-in-up animation-delay-300">
-                  <div className="glass-card p-6 h-full">
-                    <h3 className="text-xl font-semibold mb-4 text-slate-800 dark:text-slate-100 flex items-center space-x-2">
-                      <span>📈</span>
-                      <span>Case Analysis</span>
-                    </h3>
-                    <RadarChart metrics={radarMetrics} />
-                  </div>
-                </div>
+            )}
+          </div>
 
-                {/* Confidence Trends */}
-                <div className="animate-fade-in-up animation-delay-400">
-                  <div className="glass-card p-6 h-full">
-                    <h3 className="text-xl font-semibold mb-4 text-slate-800 dark:text-slate-100 flex items-center space-x-2">
-                      <span>📊</span>
-                      <span>Confidence Trends</span>
-                    </h3>
-                    <div className="overflow-hidden">
-                      <ConfidenceTrends data={confidenceHistory} />
-                    </div>
-                  </div>
-                </div>
+          {/* Right Sidebar */}
+          <div className="space-y-8">
+            {mode === 'arbitration_strategy' && response && response.radarMetrics && response.radarMetrics.metrics && (
+               <div className="glass-card p-6 animate-fade-in-up animation-delay-300">
+                 <h2 className="text-xl font-bold gradient-text mb-4">Case Analysis</h2>
+                 <RadarChart metrics={response.radarMetrics.metrics} />
+               </div>
+            )}
 
-                {/* Counter Strategy Generator */}
-                <div className="animate-fade-in-up animation-delay-500">
-                  <div className="glass-card p-6 h-full">
-                    <h3 className="text-xl font-semibold mb-4 text-slate-800 dark:text-slate-100 flex items-center space-x-2">
-                      <span>🎯</span>
-                      <span>Counter Strategy</span>
-                    </h3>
-                    <CounterStrategyGenerator
-                      currentStrategy={response.answer}
-                      onGenerate={handleCounterStrategy}
-                      isLoading={isLoading}
-                    />
-                  </div>
-                </div>
+            {response && (
+              <div className="glass-card p-6 animate-fade-in-up animation-delay-400">
+                <h2 className="text-xl font-bold gradient-text mb-4">Confidence Trends</h2>
+                <ConfidenceTrends history={confidenceHistory} currentConfidence={response.confidence} />
+              </div>
+            )}
 
-                {/* Interactive Precedent Explorer */}
-                <div className="animate-fade-in-up animation-delay-500">
-                  <div className="glass-card p-6 h-full">
-                    <h3 className="text-xl font-semibold mb-4 text-slate-800 dark:text-slate-100 flex items-center space-x-2">
-                      <span>🔍</span>
-                      <span>Precedent Explorer</span>
-                    </h3>
-                    <InteractivePrecedentExplorer
-                      precedents={precedents}
-                      onPrecedentClick={(precedent) => {
-                        console.log('Selected precedent:', precedent);
-                      }}
-                    />
-                  </div>
-                </div>
+            {mode === 'civil_procedure' && response && response.progressSteps && response.progressSteps.length > 0 && (
+              <div className="glass-card p-6 animate-fade-in-up animation-delay-500">
+                <h2 className="text-xl font-bold gradient-text mb-4">Progress Tracker</h2>
+                <ProgressTracker steps={response.progressSteps} />
               </div>
             )}
 
             {/* Sources and Citations */}
-            {response.sources && response.sources.length > 0 && (
+            {response && response.sources && response.sources.length > 0 && (
               <div className="animate-fade-in-up animation-delay-500">
                 <div className="glass-card p-8">
                   <h3 className="text-xl font-semibold mb-6 text-slate-800 dark:text-slate-100 flex items-center space-x-2">
@@ -543,7 +441,7 @@ const App: React.FC = () => {
               </div>
             )}
           </div>
-        )}
+        </div>
 
         {/* Floating Action Button */}
         <FloatingActionButton

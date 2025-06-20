@@ -254,7 +254,7 @@ def validate_answer_quality(answer: str, query: str, mode: str) -> Dict[str, Any
 def get_argument_strength_prompt(answer: str) -> str:
     """Generates a prompt to create radar chart metrics for argument strength."""
     return f"""
-    Based on the following legal analysis, evaluate the strength of the arguments presented on a scale of 1-100 across several key dimensions. Provide the output as a JSON object with a 'metrics' array. Each object in the array should have a 'metric' name (e.g., "Precedent Support", "Factual Basis", "Procedural Correctness") and a 'value'.
+    Based on the following legal analysis, evaluate the strength of the arguments presented on a scale of 1-100 across several key dimensions. Provide the output as a JSON object with a 'metrics' array. Each object in the array should have a 'name' (e.g., "Precedent Support"), a 'value', and a 'color' in hex format.
 
     Analysis:
     ---
@@ -265,11 +265,11 @@ def get_argument_strength_prompt(answer: str) -> str:
     ```json
     {{
       "metrics": [
-        {{"metric": "Precedent Support", "value": 85}},
-        {{"metric": "Factual Basis", "value": 75}},
-        {{"metric": "Legal Reasoning", "value": 90}},
-        {{"metric": "Jurisdictional Strength", "value": 80}},
-        {{"metric": "Counter-Argument Resilience", "value": 70}}
+        {{"name": "Precedent Support", "value": 85, "color": "#3b82f6"}},
+        {{"name": "Factual Basis", "value": 75, "color": "#10b981"}},
+        {{"name": "Legal Reasoning", "value": 90, "color": "#ef4444"}},
+        {{"name": "Jurisdictional Strength", "value": 80, "color": "#f97316"}},
+        {{"name": "Counter-Argument Resilience", "value": 70, "color": "#8b5cf6"}}
       ]
     }}
     ```

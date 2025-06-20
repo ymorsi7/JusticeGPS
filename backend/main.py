@@ -211,23 +211,42 @@ async def call_llm(prompt: str) -> str:
         raise
 
 def calculate_confidence(sources: List[Dict[str, Any]], query: str) -> float:
-    """Calculate confidence score based on source relevance"""
+    """
+    Calculate a confidence score based on the relevance and number of sources.
+    The score from FAISS is a distance (lower is better), so we invert it.
+    """
     if not sources:
-        return 0.3
-    
-    # Simple confidence calculation based on number and relevance of sources
-    base_confidence = min(0.9, 0.3 + len(sources) * 0.15)
-    
-    # Boost confidence if query terms match source content
-    query_terms = query.lower().split()
-    relevance_boost = 0.0
-    
+        return 0.3  # Low confidence if no sources are found
+
+    # Weight factors
+    source_count_weight = 0.4
+    relevance_score_weight = 0.6
+
+    # Normalize source count score (maxes out at 5 sources)
+    source_count_score = min(len(sources) / 5.0, 1.0)
+
+    # Average relevance score from sources (score is 1 - distance)
+    # This assumes 'score' is available and is a similarity measure [0, 1]
+    relevance_scores = [s.get('score', 0.0) for s in sources]
+    average_relevance = sum(relevance_scores) / len(relevance_scores) if relevance_scores else 0.0
+
+    # Weighted final confidence
+    confidence = (source_count_score * source_count_weight) + (average_relevance * relevance_score_weight)
+
+    # Ensure confidence is within a reasonable range (e.g., up to 0.95 before boosts)
+    confidence = min(confidence, 0.95)
+
+    # Add a small boost for keyword matches as a final check
+    query_terms = set(query.lower().split())
+    text_match_boost = 0.0
     for source in sources:
-        source_text = str(source.get('content', '')).lower()
-        matches = sum(1 for term in query_terms if term in source_text)
-        relevance_boost += matches / len(query_terms) * 0.1
+        source_text = source.get('content', '').lower()
+        if any(term in source_text for term in query_terms):
+            text_match_boost += 0.01
     
-    return min(1.0, base_confidence + relevance_boost)
+    final_confidence = min(confidence + text_match_boost, 1.0)
+    
+    return final_confidence
 
 def generate_reasoning_chain(query: str, sources: List[Dict[str, Any]], answer: str) -> List[str]:
     """Generate reasoning chain for explainability"""
