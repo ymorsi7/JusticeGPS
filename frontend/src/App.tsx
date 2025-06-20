@@ -366,7 +366,7 @@ const App: React.FC = () => {
             {response && response.flowchart && (
               <div className="glass-card p-6 animate-fade-in-up animation-delay-100">
                 <h2 className="text-xl font-bold gradient-text mb-4">Procedural Flowchart</h2>
-                <FlowChart chartDefinition={response.flowchart} />
+                <FlowChart chartData={response.flowchart} />
               </div>
             )}
             
