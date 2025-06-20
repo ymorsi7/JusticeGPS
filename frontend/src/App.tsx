@@ -42,6 +42,11 @@ interface QueryResponse {
     full_text: string;
   }>;
   session_id: string;
+  timelineEvents?: Array<any>;
+  progressSteps?: Array<any>;
+  formFields?: Array<any>;
+  radarMetrics?: Array<any>;
+  precedents?: Array<any>;
 }
 
 const App: React.FC = () => {
@@ -71,51 +76,13 @@ const App: React.FC = () => {
   });
 
   // Civil Procedure specific state
-  const [timelineEvents, setTimelineEvents] = useState<Array<{
-    id: string;
-    title: string;
-    date: string;
-    ruleCitation?: string;
-    description: string;
-    status: 'completed' | 'pending' | 'overdue';
-    daysFromStart: number;
-  }>>([]);
-  const [progressSteps, setProgressSteps] = useState<Array<{
-    id: string;
-    title: string;
-    description: string;
-    status: 'not-started' | 'in-progress' | 'completed' | 'blocked';
-    deadline?: string;
-    ruleCitation?: string;
-    formLink?: string;
-    mermaidNodeId?: string;
-    priority: 'high' | 'medium' | 'low';
-  }>>([]);
-  const [formFields, setFormFields] = useState<Array<{
-    id: string;
-    label: string;
-    value: string;
-    type: 'text' | 'number' | 'date' | 'textarea' | 'select';
-    required: boolean;
-    options?: string[];
-  }>>([]);
+  const [timelineEvents, setTimelineEvents] = useState<Array<any>>([]);
+  const [progressSteps, setProgressSteps] = useState<Array<any>>([]);
+  const [formFields, setFormFields] = useState<Array<any>>([]);
 
   // Arbitration specific state
-  const [radarMetrics, setRadarMetrics] = useState<Array<{
-    name: string;
-    value: number;
-    color: string;
-  }>>([]);
-  const [precedents, setPrecedents] = useState<Array<{
-    id: string;
-    title: string;
-    citation: string;
-    relevance: number;
-    content: string;
-    keySentences: string[];
-    date: string;
-    jurisdiction: string;
-  }>>([]);
+  const [radarMetrics, setRadarMetrics] = useState<Array<any>>([]);
+  const [precedents, setPrecedents] = useState<Array<any>>([]);
 
   // Load dark mode preference from localStorage
   useEffect(() => {
@@ -188,18 +155,12 @@ const App: React.FC = () => {
           showNotification('Excellent confidence level! 🎉', 'success');
         }
 
-        // Generate timeline events for civil procedure
-        if (mode === 'civil_procedure') {
-          generateTimelineEvents(data);
-          generateProgressSteps(data);
-          generateFormFields(data);
-        }
-
-        // Generate radar metrics for arbitration
-        if (mode === 'arbitration_strategy') {
-          generateRadarMetrics(data);
-          generatePrecedents(data);
-        }
+        // Set state only from backend response
+        setTimelineEvents(data.timelineEvents || []);
+        setProgressSteps(data.progressSteps || []);
+        setFormFields(data.formFields || []);
+        setRadarMetrics(data.radarMetrics || []);
+        setPrecedents(data.precedents || []);
       } else {
         showNotification('Failed to process query. Please try again.', 'error');
       }
@@ -209,135 +170,6 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const generateTimelineEvents = (_data: QueryResponse) => {
-    const events = [
-      {
-        id: '1',
-        title: 'Issue Claim Form',
-        date: new Date().toLocaleDateString(),
-        ruleCitation: 'CPR 7.5',
-        description: 'Submit claim form to court',
-        status: 'completed' as const,
-        daysFromStart: 0
-      },
-      {
-        id: '2',
-        title: 'Serve Claim Form',
-        date: new Date(Date.now() + 120 * 24 * 60 * 60 * 1000).toLocaleDateString(),
-        ruleCitation: 'CPR 7.5',
-        description: 'Serve claim form on defendant within 4 months',
-        status: 'pending' as const,
-        daysFromStart: 120
-      },
-      {
-        id: '3',
-        title: 'Directions Hearing',
-        date: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toLocaleDateString(),
-        description: 'Case management conference',
-        status: 'pending' as const,
-        daysFromStart: 180
-      }
-    ];
-    setTimelineEvents(events);
-  };
-
-  const generateProgressSteps = (_data: QueryResponse) => {
-    const steps = [
-      {
-        id: '1',
-        title: 'Issue Claim Form',
-        description: 'Complete and submit claim form to court',
-        status: 'completed' as const,
-        ruleCitation: 'CPR 7.5',
-        formLink: '/forms/n1',
-        priority: 'high' as const
-      },
-      {
-        id: '2',
-        title: 'Serve on Defendant',
-        description: 'Serve claim form within 4 months of issue',
-        status: 'in-progress' as const,
-        deadline: new Date(Date.now() + 120 * 24 * 60 * 60 * 1000).toLocaleDateString(),
-        ruleCitation: 'CPR 7.5',
-        priority: 'high' as const
-      },
-      {
-        id: '3',
-        title: 'File Directions Questionnaire',
-        description: 'Complete and file N181 form',
-        status: 'not-started' as const,
-        formLink: '/forms/n181',
-        priority: 'medium' as const
-      }
-    ];
-    setProgressSteps(steps);
-  };
-
-  const generateFormFields = (_data: QueryResponse) => {
-    const fields = [
-      {
-        id: 'claimant',
-        label: 'Claimant Name',
-        value: 'John Smith',
-        type: 'text' as const,
-        required: true
-      },
-      {
-        id: 'defendant',
-        label: 'Defendant Name',
-        value: 'ABC Company Ltd',
-        type: 'text' as const,
-        required: true
-      },
-      {
-        id: 'amount',
-        label: 'Claim Amount',
-        value: '£75,000',
-        type: 'text' as const,
-        required: true
-      },
-      {
-        id: 'track',
-        label: 'Track',
-        value: 'Multi-track',
-        type: 'select' as const,
-        required: true,
-        options: ['Small claims', 'Fast track', 'Multi-track']
-      }
-    ];
-    setFormFields(fields);
-  };
-
-  const generateRadarMetrics = (_data: QueryResponse) => {
-    const metrics = [
-      { name: 'Jurisdiction Strength', value: 85, color: '#3b82f6' },
-      { name: 'Environmental Evidence', value: 72, color: '#10b981' },
-      { name: 'Strategic Advantage', value: 68, color: '#f59e0b' },
-      { name: 'Precedent Support', value: 91, color: '#ef4444' },
-      { name: 'Weakness Risk', value: 35, color: '#8b5cf6' }
-    ];
-    setRadarMetrics(metrics);
-  };
-
-  const generatePrecedents = (_data: QueryResponse) => {
-    const mockPrecedents = [
-      {
-        id: '1',
-        title: 'Saluka v. Czech Republic',
-        citation: 'PCA Case No. 2001-04',
-        relevance: 0.92,
-        content: 'This case established important principles regarding fair and equitable treatment in investment arbitration...',
-        keySentences: [
-          'The Tribunal finds that the Czech Republic violated the fair and equitable treatment standard.',
-          'Discriminatory treatment without reasonable justification constitutes a breach of international law.'
-        ],
-        date: '2006',
-        jurisdiction: 'PCA'
-      }
-    ];
-    setPrecedents(mockPrecedents);
   };
 
   const handleCounterStrategy = async (strategyQuery: string) => {

@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import json
 import asyncio
+import re
 from datetime import datetime
 import os
 from dotenv import load_dotenv
@@ -12,7 +13,17 @@ from openai import AsyncOpenAI
 
 from rag_cpr import CPRRAGSystem
 from rag_cases import ArbitrationRAGSystem
-from prompt_templates import get_prompt_template, refine_answer, get_civil_procedure_prompt, get_arbitration_strategy_prompt, extract_citations, validate_answer_quality
+from prompt_templates import (
+    get_prompt_template,
+    refine_answer, 
+    get_civil_procedure_prompt, 
+    get_arbitration_strategy_prompt, 
+    extract_citations, 
+    validate_answer_quality,
+    get_flowchart_prompt,
+    get_timeline_prompt,
+    get_progress_tracker_prompt
+)
 
 app = FastAPI(title="JusticeGPS", version="1.0.0")
 
@@ -48,6 +59,8 @@ class QueryResponse(BaseModel):
     flowchart: Optional[str] = None
     reasoning_chain: List[str]
     session_id: str
+    timelineEvents: Optional[List[Dict[str, Any]]] = None
+    progressSteps: Optional[List[Dict[str, Any]]] = None
 
 @app.get("/")
 async def root():
@@ -74,10 +87,27 @@ async def query(request: QueryRequest):
         # Call the real LLM
         llm_answer = await call_llm(prompt)
         
+        # Generate structured data for components in parallel for civil procedure
+        if request.mode == "civil_procedure":
+            flowchart_prompt = get_flowchart_prompt(llm_answer)
+            timeline_prompt = get_timeline_prompt(llm_answer)
+            progress_prompt = get_progress_tracker_prompt(llm_answer)
+            
+            flowchart_task = asyncio.create_task(generate_structured_data(flowchart_prompt, is_json=False))
+            timeline_task = asyncio.create_task(generate_structured_data(timeline_prompt, is_json=True))
+            progress_task = asyncio.create_task(generate_structured_data(progress_prompt, is_json=True))
+            
+            flowchart_data = await flowchart_task
+            timeline_data = await timeline_task
+            progress_data = await progress_task
+        else:
+            flowchart_data = None
+            timeline_data = []
+            progress_data = []
+
         # Calculate confidence and generate reasoning chain
         confidence = calculate_confidence(relevant_docs, request.query)
         reasoning_chain = generate_reasoning_chain(request.query, relevant_docs, llm_answer)
-        flowchart = generate_flowchart(request.mode, request.query, llm_answer)
         
         # Extract citations
         citations = extract_citations(llm_answer)
@@ -89,11 +119,13 @@ async def query(request: QueryRequest):
             "answer": llm_answer,
             "confidence": confidence,
             "reasoning_chain": reasoning_chain,
-            "flowchart": flowchart,
+            "flowchart": flowchart_data,
             "citations": citations,
             "quality_metrics": quality_metrics,
             "sources": relevant_docs,
-            "session_id": request.session_id or f"session_{datetime.now().timestamp()}"
+            "session_id": request.session_id or f"session_{datetime.now().timestamp()}",
+            "timelineEvents": timeline_data,
+            "progressSteps": progress_data
         }
         
     except Exception as e:
@@ -193,32 +225,27 @@ def generate_reasoning_chain(query: str, sources: List[Dict[str, Any]], answer: 
     
     return chain
 
-def generate_flowchart(mode: str, query: str, answer: str) -> Optional[str]:
-    """Generate Mermaid flowchart based on mode and content"""
-    if mode == "civil_procedure" and "CPR 7.5" in query:
-        return """graph TD
-    A[Claim Form Issued] --> B[4 Month Deadline]
-    B --> C{Service Within Deadline?}
-    C -->|Yes| D[Proceed with Claim]
-    C -->|No| E[Apply for Extension]
-    E --> F{Extension Granted?}
-    F -->|Yes| D
-    F -->|No| G[Claim Struck Out]
-    D --> H[Continue Proceedings]"""
-    
-    elif mode == "arbitration_strategy" and "environmental" in query.lower():
-        return """graph TD
-    A[Environmental Counterclaim Filed] --> B[Assess Jurisdiction]
-    B --> C{Jurisdiction Established?}
-    C -->|Yes| D[Evaluate Merits]
-    C -->|No| E[Challenge Jurisdiction]
-    D --> F{Evidence Sufficient?}
-    F -->|Yes| G[Consider Settlement]
-    F -->|No| H[Challenge Evidence]
-    G --> I[Potential Award]
-    H --> J[Defend on Merits]"""
-    
-    return None
+async def generate_structured_data(prompt: str, is_json: bool = True):
+    """Generic function to call LLM and get structured data (JSON or text)."""
+    try:
+        response_text = await call_llm(prompt)
+        if is_json:
+            # The LLM might return the JSON within a code block, so we need to extract it.
+            json_match = re.search(r'```json\n(.*)\n```', response_text, re.DOTALL)
+            if json_match:
+                response_text = json_match.group(1)
+            
+            # The LLM sometimes forgets the outer brackets for a list of objects
+            if response_text.strip().startswith('{'):
+                response_text = f'[{response_text.strip()}]'
+                
+            return json.loads(response_text)
+        # For mermaid chart, just return the raw text
+        return response_text.strip()
+    except Exception as e:
+        print(f"Error generating structured data: {e}")
+        # Return empty list for JSON or empty string for text on error
+        return [] if is_json else ""
 
 if __name__ == "__main__":
     import uvicorn
