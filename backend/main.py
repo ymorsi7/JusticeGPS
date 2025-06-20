@@ -19,7 +19,7 @@ app = FastAPI(title="JusticeGPS", version="1.0.0")
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173", "http://localhost:5176", "*"],
+    allow_origins=["http://localhost:3000", "http://localhost:5173", "http://localhost:5174", "http://localhost:5176", "*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -83,7 +83,7 @@ async def query(request: QueryRequest):
         citations = extract_citations(llm_answer)
         
         # Validate answer quality
-        quality_metrics = validate_answer_quality(llm_answer, relevant_docs)
+        quality_metrics = validate_answer_quality(llm_answer, request.query, request.mode)
 
         return {
             "answer": llm_answer,

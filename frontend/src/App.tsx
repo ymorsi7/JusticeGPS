@@ -45,7 +45,7 @@ interface QueryResponse {
 }
 
 const App: React.FC = () => {
-  const [mode, setMode] = useState<'civil_procedure' | 'arbitration'>('civil_procedure');
+  const [mode, setMode] = useState<'civil_procedure' | 'arbitration_strategy'>('civil_procedure');
   const [query, setQuery] = useState('');
   const [response, setResponse] = useState<QueryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -153,7 +153,7 @@ const App: React.FC = () => {
     showNotification('Processing your query...', 'info');
     
     try {
-      const response = await fetch('/api/query', {
+      const response = await fetch('http://localhost:8000/api/query', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -196,7 +196,7 @@ const App: React.FC = () => {
         }
 
         // Generate radar metrics for arbitration
-        if (mode === 'arbitration') {
+        if (mode === 'arbitration_strategy') {
           generateRadarMetrics(data);
           generatePrecedents(data);
         }
@@ -422,9 +422,9 @@ const App: React.FC = () => {
                     </span>
                   </button>
                   <button
-                    onClick={() => setMode('arbitration')}
+                    onClick={() => setMode('arbitration_strategy')}
                     className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ${
-                      mode === 'arbitration'
+                      mode === 'arbitration_strategy'
                         ? 'bg-gradient-secondary text-white shadow-lg transform scale-105'
                         : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/20'
                     }`}
@@ -483,7 +483,7 @@ const App: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <span className="badge">
-                    {mode === 'civil_procedure' ? '📋 Civil Procedure' : '⚖️ Arbitration'}
+                    {mode === 'civil_procedure' ? '📋 Civil Procedure' : '⚖️ Arbitration Strategy'}
                   </span>
                   <span className="text-sm text-slate-500 dark:text-slate-400">
                     AI-powered legal assistance
