@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  justicegps:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+    volumes:
+      - ./sample_data:/app/sample_data
+    restart: unless-stopped
+
+  frontend-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app/frontend
+      - /app/frontend/node_modules
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      - justicegps 

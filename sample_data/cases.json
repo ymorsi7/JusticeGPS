@@ -1,0 +1,67 @@
+[
+  {
+    "case_name": "Burlington v. Ecuador",
+    "citation": "ICSID ARB/08/5 (2017)",
+    "issues": ["environmental counterclaim", "jurisdiction", "damages"],
+    "summary": "Tribunal accepted state's environmental counterclaim under Article 46 of the ICSID Convention. Awarded USD 41 million in environmental damages. Established precedent for environmental counterclaims in investment arbitration.",
+    "outcome": "Counterclaim accepted",
+    "supportive": false,
+    "key_holdings": [
+      "Environmental counterclaims are admissible under Article 46",
+      "High evidentiary standard for environmental harm",
+      "Tribunals can award environmental damages"
+    ]
+  },
+  {
+    "case_name": "Perenco v. Ecuador",
+    "citation": "ICSID ARB/08/6 (2019)",
+    "issues": ["environmental counterclaim", "evidence", "causation"],
+    "summary": "Tribunal dismissed environmental counterclaim due to insufficient evidence of causation. Emphasized need for clear causal link between investor actions and environmental harm.",
+    "outcome": "Counterclaim dismissed",
+    "supportive": true,
+    "key_holdings": [
+      "High burden of proof for environmental causation",
+      "Insufficient evidence leads to dismissal",
+      "Technical expertise required for environmental claims"
+    ]
+  },
+  {
+    "case_name": "MetalTech v. Uzbekistan",
+    "citation": "ICSID ARB/10/3 (2013)",
+    "issues": ["jurisdiction", "environmental regulations", "legitimate expectations"],
+    "summary": "Tribunal found jurisdiction but dismissed claims. Recognized environmental regulations as legitimate public policy measures. Supported state's right to regulate for environmental protection.",
+    "outcome": "Claims dismissed",
+    "supportive": true,
+    "key_holdings": [
+      "Environmental regulations are legitimate public policy",
+      "States have right to regulate for environmental protection",
+      "Investor expectations must account for regulatory changes"
+    ]
+  },
+  {
+    "case_name": "Urbaser v. Argentina",
+    "citation": "ICSID ARB/07/26 (2016)",
+    "issues": ["environmental obligations", "counterclaim", "human rights"],
+    "summary": "Tribunal accepted environmental counterclaim based on human rights obligations. Established that environmental protection can be counterclaimed in investment arbitration.",
+    "outcome": "Counterclaim accepted",
+    "supportive": false,
+    "key_holdings": [
+      "Environmental obligations can be counterclaimed",
+      "Human rights framework supports environmental claims",
+      "Investors have environmental responsibilities"
+    ]
+  },
+  {
+    "case_name": "Paushok v. Mongolia",
+    "citation": "UNCITRAL (2011)",
+    "issues": ["environmental regulations", "legitimate expectations", "damages"],
+    "summary": "Tribunal upheld environmental regulations as legitimate public policy. Dismissed claims for damages. Supported state's regulatory authority for environmental protection.",
+    "outcome": "Claims dismissed",
+    "supportive": true,
+    "key_holdings": [
+      "Environmental regulations are legitimate public policy",
+      "Regulatory changes are foreseeable",
+      "States have broad regulatory authority"
+    ]
+  }
+] 
