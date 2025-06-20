@@ -14,6 +14,10 @@ import InteractivePrecedentExplorer from './components/InteractivePrecedentExplo
 import FormAutoFillPreview from './components/FormAutoFillPreview';
 import ConfidenceBar from './components/ConfidenceBar';
 import ExplainabilityToggle from './components/ExplainabilityToggle';
+import LoadingSpinner from './components/LoadingSpinner';
+import NotificationToast from './components/NotificationToast';
+import ParticleBackground from './components/ParticleBackground';
+import FloatingActionButton from './components/FloatingActionButton';
 
 interface QueryResponse {
   answer: string;
@@ -54,6 +58,17 @@ const App: React.FC = () => {
     label: string;
     trigger: string;
   }>>([]);
+
+  // Notification state
+  const [notification, setNotification] = useState<{
+    show: boolean;
+    message: string;
+    type: 'success' | 'warning' | 'error' | 'info';
+  }>({
+    show: false,
+    message: '',
+    type: 'info'
+  });
 
   // Civil Procedure specific state
   const [timelineEvents, setTimelineEvents] = useState<Array<{
@@ -118,11 +133,25 @@ const App: React.FC = () => {
     }
   }, [darkMode]);
 
+  const showNotification = (message: string, type: 'success' | 'warning' | 'error' | 'info') => {
+    setNotification({
+      show: true,
+      message,
+      type
+    });
+  };
+
+  const hideNotification = () => {
+    setNotification(prev => ({ ...prev, show: false }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
 
     setIsLoading(true);
+    showNotification('Processing your query...', 'info');
+    
     try {
       const response = await fetch('/api/query', {
         method: 'POST',
@@ -149,10 +178,14 @@ const App: React.FC = () => {
         };
         setConfidenceHistory(prev => [...prev, newPoint]);
 
+        // Show success notification
+        showNotification('Analysis complete!', 'success');
+
         // Trigger confetti for high confidence
         if (data.confidence >= 90) {
           setShowConfetti(true);
           setTimeout(() => setShowConfetti(false), 3000);
+          showNotification('Excellent confidence level! 🎉', 'success');
         }
 
         // Generate timeline events for civil procedure
@@ -167,9 +200,12 @@ const App: React.FC = () => {
           generateRadarMetrics(data);
           generatePrecedents(data);
         }
+      } else {
+        showNotification('Failed to process query. Please try again.', 'error');
       }
     } catch (error) {
       console.error('Error submitting query:', error);
+      showNotification('Network error. Please check your connection.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -309,41 +345,96 @@ const App: React.FC = () => {
     // This would trigger the same submit logic
   };
 
+  const handleQuickQuery = () => {
+    const quickQueries = [
+      "What is the deadline for serving a claim form?",
+      "How do I apply for summary judgment?",
+      "What are the key steps in arbitration?",
+      "How to challenge an arbitration award?"
+    ];
+    const randomQuery = quickQueries[Math.floor(Math.random() * quickQueries.length)];
+    setQuery(randomQuery);
+    showNotification('Quick query loaded! Click submit to analyze.', 'info');
+  };
+
+  const handleHelp = () => {
+    showNotification('Help documentation coming soon! 📚', 'info');
+  };
+
+  const handleSettings = () => {
+    showNotification('Settings panel coming soon! ⚙️', 'info');
+  };
+
   return (
-    <div className={`min-h-screen ${darkMode ? 'dark bg-gray-900' : 'bg-gray-50'}`}>
-      <Confetti trigger={showConfetti} />
+    <div className={`min-h-screen transition-all duration-500 ${darkMode ? 'dark' : ''}`}>
+      {/* Particle Background */}
+      <ParticleBackground />
       
+      {/* Animated Background */}
+      <div className="fixed inset-0 -z-10">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary-50 via-blue-50 to-secondary-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900"></div>
+        <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-primary rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-float"></div>
+        <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-secondary rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-float animation-delay-200"></div>
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-accent rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-float animation-delay-400"></div>
+      </div>
+
+      {/* Confetti Overlay */}
+      <Confetti trigger={showConfetti} onComplete={() => setShowConfetti(false)} />
+
+      {/* Notification Toast */}
+      <NotificationToast
+        show={notification.show}
+        message={notification.message}
+        type={notification.type}
+        onClose={hideNotification}
+        duration={4000}
+      />
+
       {/* Header */}
-      <header className={`${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-b shadow-sm`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <h1 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                JusticeGPS
-              </h1>
+      <header className="relative z-10">
+        <div className="glass-card mx-4 mt-4 mb-8">
+          <div className="flex items-center justify-between p-6">
+            <div className="flex items-center space-x-6">
+              {/* Logo */}
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 bg-gradient-primary rounded-xl flex items-center justify-center shadow-lg glow-effect">
+                  <span className="text-white text-xl font-bold">⚖️</span>
+                </div>
+                <h1 className="text-2xl font-bold gradient-text">
+                  JusticeGPS
+                </h1>
+              </div>
               
               {/* Mode Toggle */}
-              <div className="flex bg-gray-100 rounded-lg p-1">
-                <button
-                  onClick={() => setMode('civil_procedure')}
-                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                    mode === 'civil_procedure'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  Civil Procedure
-                </button>
-                <button
-                  onClick={() => setMode('arbitration')}
-                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                    mode === 'arbitration'
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  Arbitration
-                </button>
+              <div className="glass-card p-1">
+                <div className="flex bg-white/20 dark:bg-slate-700/20 rounded-lg p-1">
+                  <button
+                    onClick={() => setMode('civil_procedure')}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ${
+                      mode === 'civil_procedure'
+                        ? 'bg-gradient-primary text-white shadow-lg transform scale-105'
+                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/20'
+                    }`}
+                  >
+                    <span className="flex items-center space-x-2">
+                      <span>📋</span>
+                      <span>Civil Procedure</span>
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setMode('arbitration')}
+                    className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ${
+                      mode === 'arbitration'
+                        ? 'bg-gradient-secondary text-white shadow-lg transform scale-105'
+                        : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-white/20'
+                    }`}
+                  >
+                    <span className="flex items-center space-x-2">
+                      <span>⚖️</span>
+                      <span>Arbitration</span>
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
             
@@ -356,81 +447,97 @@ const App: React.FC = () => {
               
               <button
                 onClick={() => setDarkMode(!darkMode)}
-                className={`p-2 rounded-lg transition-colors ${
-                  darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
+                className="glass-card p-3 hover:scale-110 transition-all duration-300"
               >
-                {darkMode ? '☀️' : '🌙'}
+                <span className="text-xl">
+                  {darkMode ? '☀️' : '🌙'}
+                </span>
               </button>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
         {/* Query Input */}
-        <div className="mb-8">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="query" className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                Ask your legal question
-              </label>
-              <textarea
-                id="query"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={mode === 'civil_procedure' 
-                  ? "e.g., What is the deadline for serving a claim form under CPR 7.5?"
-                  : "e.g., What are the key arguments in environmental investment disputes?"
-                }
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                  darkMode ? 'bg-gray-800 border-gray-600 text-white placeholder-gray-400' : 'bg-white border-gray-300'
-                }`}
-                rows={3}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-500">
-                {mode === 'civil_procedure' ? 'Civil Procedure Mode' : 'Arbitration Mode'}
+        <div className="mb-8 animate-fade-in-up">
+          <div className="glass-card p-8">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label htmlFor="query" className="block text-lg font-semibold mb-3 text-slate-700 dark:text-slate-200">
+                  Ask your legal question
+                </label>
+                <textarea
+                  id="query"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={mode === 'civil_procedure' 
+                    ? "e.g., What is the deadline for serving a claim form under CPR 7.5?"
+                    : "e.g., What are the key arguments in environmental investment disputes?"
+                  }
+                  className="input-modern resize-none"
+                  rows={4}
+                />
               </div>
               
-              <button
-                type="submit"
-                disabled={isLoading || !query.trim()}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>Analyzing...</span>
-                  </div>
-                ) : (
-                  <span>Submit Query</span>
-                )}
-              </button>
-            </div>
-          </form>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <span className="badge">
+                    {mode === 'civil_procedure' ? '📋 Civil Procedure' : '⚖️ Arbitration'}
+                  </span>
+                  <span className="text-sm text-slate-500 dark:text-slate-400">
+                    AI-powered legal assistance
+                  </span>
+                </div>
+                
+                <button
+                  type="submit"
+                  disabled={isLoading || !query.trim()}
+                  className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                >
+                  {isLoading ? (
+                    <div className="flex items-center space-x-3">
+                      <LoadingSpinner size="sm" variant="primary" text="" />
+                      <span>Analyzing...</span>
+                    </div>
+                  ) : (
+                    <span className="flex items-center space-x-2">
+                      <span>🚀</span>
+                      <span>Submit Query</span>
+                    </span>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
 
         {/* Response Section */}
         {response && (
-          <div className="space-y-8">
+          <div className="space-y-8 animate-fade-in-up animation-delay-200">
             {/* Main Answer */}
-            <div className={`${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white'} rounded-lg border shadow-sm p-6`}>
-              <div className="flex items-start justify-between mb-4">
-                <h2 className={`text-xl font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                  Answer
-                </h2>
+            <div className="glass-card p-8 card-hover">
+              <div className="flex items-start justify-between mb-6">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-gradient-success rounded-lg flex items-center justify-center">
+                    <span className="text-white text-lg">💡</span>
+                  </div>
+                  <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
+                    Answer
+                  </h2>
+                </div>
                 <ConfidenceBar confidence={response.confidence} />
               </div>
               
-              <div className={`prose max-w-none ${darkMode ? 'prose-invert' : ''}`}>
-                <div dangerouslySetInnerHTML={{ __html: response.answer.replace(/\n/g, '<br>') }} />
+              <div className="prose prose-lg max-w-none prose-slate dark:prose-invert">
+                <div 
+                  className="text-slate-700 dark:text-slate-200 leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: response.answer.replace(/\n/g, '<br>') }} 
+                />
               </div>
               
               {/* Speech Output */}
-              <div className="mt-6">
+              <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-600">
                 <SpeechOutput 
                   text={response.answer.replace(/<[^>]*>/g, '')} 
                   autoPlay={response.confidence >= 90}
@@ -442,108 +549,174 @@ const App: React.FC = () => {
             {mode === 'civil_procedure' ? (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Interactive Flowchart */}
-                <div>
-                  <FlowChart
-                    chartData={response.flowchart}
-                    citations={response.citations}
-                    onNodeClick={(nodeId, citation) => {
-                      console.log('Clicked node:', nodeId, 'Citation:', citation);
-                    }}
-                  />
+                <div className="animate-fade-in-up animation-delay-300">
+                  <div className="glass-card p-6 h-full">
+                    <h3 className="text-xl font-semibold mb-4 text-slate-800 dark:text-slate-100 flex items-center space-x-2">
+                      <span>🔄</span>
+                      <span>Process Flow</span>
+                    </h3>
+                    <FlowChart
+                      chartData={response.flowchart}
+                      citations={response.citations}
+                      onNodeClick={(nodeId, citation) => {
+                        console.log('Clicked node:', nodeId, 'Citation:', citation);
+                      }}
+                    />
+                  </div>
                 </div>
 
                 {/* Case Timeline */}
-                <div>
-                  <CaseTimeline events={timelineEvents} totalDays={365} />
+                <div className="animate-fade-in-up animation-delay-400">
+                  <div className="glass-card p-6 h-full">
+                    <h3 className="text-xl font-semibold mb-4 text-slate-800 dark:text-slate-100 flex items-center space-x-2">
+                      <span>📅</span>
+                      <span>Case Timeline</span>
+                    </h3>
+                    <CaseTimeline events={timelineEvents} totalDays={365} />
+                  </div>
                 </div>
 
                 {/* Progress Tracker */}
-                <div>
-                  <ProgressTracker
-                    steps={progressSteps}
-                    onStepClick={(step) => {
-                      console.log('Clicked step:', step);
-                    }}
-                    onFormClick={(formLink) => {
-                      console.log('Clicked form:', formLink);
-                    }}
-                  />
+                <div className="animate-fade-in-up animation-delay-500">
+                  <div className="glass-card p-6 h-full">
+                    <h3 className="text-xl font-semibold mb-4 text-slate-800 dark:text-slate-100 flex items-center space-x-2">
+                      <span>📊</span>
+                      <span>Progress Tracker</span>
+                    </h3>
+                    <ProgressTracker
+                      steps={progressSteps}
+                      onStepClick={(step) => {
+                        console.log('Clicked step:', step);
+                      }}
+                      onFormClick={(formLink) => {
+                        console.log('Clicked form:', formLink);
+                      }}
+                    />
+                  </div>
                 </div>
 
                 {/* Form Auto-Fill Preview */}
-                <div>
-                  <FormAutoFillPreview
-                    formType="N1"
-                    fields={formFields}
-                    onFieldChange={(fieldId, value) => {
-                      setFormFields(prev => 
-                        prev.map(field => 
-                          field.id === fieldId ? { ...field, value } : field
-                        )
-                      );
-                    }}
-                    onDownload={() => {
-                      console.log('Downloading form...');
-                    }}
-                  />
+                <div className="animate-fade-in-up animation-delay-500">
+                  <div className="glass-card p-6 h-full">
+                    <h3 className="text-xl font-semibold mb-4 text-slate-800 dark:text-slate-100 flex items-center space-x-2">
+                      <span>📝</span>
+                      <span>Form Preview</span>
+                    </h3>
+                    <FormAutoFillPreview
+                      formType="N1"
+                      fields={formFields}
+                      onFieldChange={(fieldId, value) => {
+                        setFormFields(prev => 
+                          prev.map(field => 
+                            field.id === fieldId ? { ...field, value } : field
+                          )
+                        );
+                      }}
+                      onDownload={() => {
+                        console.log('Downloading form...');
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* Radar Chart */}
-                <div>
-                  <RadarChart metrics={radarMetrics} />
+                <div className="animate-fade-in-up animation-delay-300">
+                  <div className="glass-card p-6 h-full">
+                    <h3 className="text-xl font-semibold mb-4 text-slate-800 dark:text-slate-100 flex items-center space-x-2">
+                      <span>📈</span>
+                      <span>Case Analysis</span>
+                    </h3>
+                    <RadarChart metrics={radarMetrics} />
+                  </div>
                 </div>
 
                 {/* Confidence Trends */}
-                <div>
-                  <ConfidenceTrends data={confidenceHistory} />
+                <div className="animate-fade-in-up animation-delay-400">
+                  <div className="glass-card p-6 h-full">
+                    <h3 className="text-xl font-semibold mb-4 text-slate-800 dark:text-slate-100 flex items-center space-x-2">
+                      <span>📊</span>
+                      <span>Confidence Trends</span>
+                    </h3>
+                    <ConfidenceTrends data={confidenceHistory} />
+                  </div>
                 </div>
 
                 {/* Counter Strategy Generator */}
-                <div>
-                  <CounterStrategyGenerator
-                    currentStrategy={response.answer}
-                    onGenerate={handleCounterStrategy}
-                    isLoading={isLoading}
-                  />
+                <div className="animate-fade-in-up animation-delay-500">
+                  <div className="glass-card p-6 h-full">
+                    <h3 className="text-xl font-semibold mb-4 text-slate-800 dark:text-slate-100 flex items-center space-x-2">
+                      <span>🎯</span>
+                      <span>Counter Strategy</span>
+                    </h3>
+                    <CounterStrategyGenerator
+                      currentStrategy={response.answer}
+                      onGenerate={handleCounterStrategy}
+                      isLoading={isLoading}
+                    />
+                  </div>
                 </div>
 
                 {/* Interactive Precedent Explorer */}
-                <div>
-                  <InteractivePrecedentExplorer
-                    precedents={precedents}
-                    onPrecedentClick={(precedent) => {
-                      console.log('Selected precedent:', precedent);
-                    }}
-                  />
+                <div className="animate-fade-in-up animation-delay-500">
+                  <div className="glass-card p-6 h-full">
+                    <h3 className="text-xl font-semibold mb-4 text-slate-800 dark:text-slate-100 flex items-center space-x-2">
+                      <span>🔍</span>
+                      <span>Precedent Explorer</span>
+                    </h3>
+                    <InteractivePrecedentExplorer
+                      precedents={precedents}
+                      onPrecedentClick={(precedent) => {
+                        console.log('Selected precedent:', precedent);
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
             )}
 
             {/* Sources and Citations */}
             {response.sources && response.sources.length > 0 && (
-              <div className={`${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white'} rounded-lg border shadow-sm p-6`}>
-                <h3 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                  Sources & Citations
-                </h3>
-                <div className="space-y-4">
-                  {response.sources.map((source, index) => (
-                    <div key={index} className="p-4 border rounded-lg">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium text-blue-600">{source.rule_number}</span>
-                        <span className="text-sm text-gray-500">Relevance: {Math.round(source.score * 100)}%</span>
+              <div className="animate-fade-in-up animation-delay-500">
+                <div className="glass-card p-8">
+                  <h3 className="text-xl font-semibold mb-6 text-slate-800 dark:text-slate-100 flex items-center space-x-2">
+                    <span>📚</span>
+                    <span>Sources & Citations</span>
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {response.sources.map((source, index) => (
+                      <div key={index} className="glass-card p-4 card-hover">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="badge font-semibold">{source.rule_number}</span>
+                          <span className="text-sm text-slate-500 dark:text-slate-400">
+                            {Math.round(source.score * 100)}% relevant
+                          </span>
+                        </div>
+                        <h4 className="font-semibold text-slate-800 dark:text-slate-100 mb-2">
+                          {source.heading}
+                        </h4>
+                        <p className="text-sm text-slate-600 dark:text-slate-300 mb-2">
+                          {source.part_title}
+                        </p>
+                        <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">
+                          {source.excerpt}
+                        </p>
                       </div>
-                      <p className="text-sm text-gray-700 mb-2">{source.heading}</p>
-                      <p className="text-xs text-gray-500">{source.part_title}</p>
-                      <p className="text-sm text-gray-600 mt-2">{source.excerpt}</p>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
           </div>
         )}
+
+        {/* Floating Action Button */}
+        <FloatingActionButton
+          onQuickQuery={handleQuickQuery}
+          onHelp={handleHelp}
+          onSettings={handleSettings}
+        />
       </main>
     </div>
   );

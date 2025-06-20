@@ -2,16 +2,261 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+@layer base {
+  body {
+    @apply bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900;
+    @apply text-slate-900 dark:text-slate-100;
+    @apply font-['Inter',sans-serif];
+    @apply antialiased;
+    @apply min-h-screen;
+    @apply transition-colors duration-300;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    @apply w-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-slate-100 dark:bg-slate-800;
+    @apply rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gradient-to-b from-primary-400 to-primary-600;
+    @apply rounded-full;
+    @apply hover:from-primary-500 hover:to-primary-700;
+    @apply transition-all duration-300;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply shadow-lg;
+  }
+
+  /* Selection styling */
+  ::selection {
+    @apply bg-primary-200 dark:bg-primary-800;
+    @apply text-primary-900 dark:text-primary-100;
+  }
+
+  /* Focus styles */
+  *:focus {
+    @apply outline-none;
+  }
+
+  *:focus-visible {
+    @apply ring-2 ring-primary-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-900;
+  }
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+@layer components {
+  /* Glassmorphism card */
+  .glass-card {
+    @apply bg-white/70 dark:bg-slate-800/70;
+    @apply backdrop-blur-md;
+    @apply border border-white/20 dark:border-slate-700/50;
+    @apply shadow-xl;
+    @apply rounded-2xl;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary-600 via-secondary-600 to-accent-600;
+    @apply bg-clip-text;
+    @apply text-transparent;
+    @apply animate-gradient-x;
+  }
+
+  /* Animated button */
+  .btn-primary {
+    @apply relative;
+    @apply px-6 py-3;
+    @apply bg-gradient-to-r from-primary-500 to-primary-600;
+    @apply hover:from-primary-600 hover:to-primary-700;
+    @apply text-white font-semibold;
+    @apply rounded-xl;
+    @apply shadow-lg hover:shadow-xl;
+    @apply transform hover:scale-105;
+    @apply transition-all duration-300;
+    @apply overflow-hidden;
+  }
+
+  .btn-primary::before {
+    @apply content-[''];
+    @apply absolute inset-0;
+    @apply bg-gradient-to-r from-white/20 to-transparent;
+    @apply transform -skew-x-12 -translate-x-full;
+    @apply transition-transform duration-700;
+  }
+
+  .btn-primary:hover::before {
+    @apply translate-x-full;
+  }
+
+  /* Floating animation */
+  .float-animation {
+    @apply animate-float;
+  }
+
+  /* Glow effect */
+  .glow-effect {
+    @apply animate-glow;
+  }
+
+  /* Shimmer loading effect */
+  .shimmer {
+    @apply relative;
+    @apply overflow-hidden;
+    @apply bg-slate-200 dark:bg-slate-700;
+  }
+
+  .shimmer::before {
+    @apply content-[''];
+    @apply absolute inset-0;
+    @apply bg-gradient-to-r from-transparent via-white/20 to-transparent;
+    @apply animate-shimmer;
+  }
+
+  /* Card hover effects */
+  .card-hover {
+    @apply transition-all duration-300;
+    @apply hover:transform hover:scale-105;
+    @apply hover:shadow-2xl;
+    @apply hover:shadow-primary-500/25;
+  }
+
+  /* Input styling */
+  .input-modern {
+    @apply w-full;
+    @apply px-4 py-3;
+    @apply bg-white/80 dark:bg-slate-800/80;
+    @apply backdrop-blur-sm;
+    @apply border border-slate-200 dark:border-slate-600;
+    @apply rounded-xl;
+    @apply focus:ring-2 focus:ring-primary-500;
+    @apply focus:border-primary-500;
+    @apply transition-all duration-300;
+    @apply placeholder-slate-400 dark:placeholder-slate-500;
+  }
+
+  /* Badge styling */
+  .badge {
+    @apply inline-flex;
+    @apply items-center;
+    @apply px-3 py-1;
+    @apply text-xs font-medium;
+    @apply rounded-full;
+    @apply bg-gradient-to-r from-primary-100 to-primary-200;
+    @apply text-primary-800;
+    @apply dark:from-primary-900 dark:to-primary-800;
+    @apply dark:text-primary-100;
+  }
+
+  /* Progress bar */
+  .progress-bar {
+    @apply w-full;
+    @apply h-3;
+    @apply bg-slate-200 dark:bg-slate-700;
+    @apply rounded-full;
+    @apply overflow-hidden;
+    @apply relative;
+  }
+
+  .progress-fill {
+    @apply h-full;
+    @apply bg-gradient-to-r from-primary-400 to-primary-600;
+    @apply rounded-full;
+    @apply transition-all duration-500;
+    @apply relative;
+  }
+
+  .progress-fill::after {
+    @apply content-[''];
+    @apply absolute inset-0;
+    @apply bg-gradient-to-r from-white/20 to-transparent;
+    @apply animate-shimmer;
+  }
+}
+
+@layer utilities {
+  /* Text shadows */
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .text-shadow-lg {
+    text-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Backdrop blur utilities */
+  .backdrop-blur-xs {
+    backdrop-filter: blur(2px);
+  }
+
+  /* Gradient backgrounds */
+  .bg-gradient-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+
+  .bg-gradient-secondary {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  }
+
+  .bg-gradient-accent {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  }
+
+  /* Animation delays */
+  .animation-delay-100 {
+    animation-delay: 100ms;
+  }
+
+  .animation-delay-200 {
+    animation-delay: 200ms;
+  }
+
+  .animation-delay-300 {
+    animation-delay: 300ms;
+  }
+
+  .animation-delay-400 {
+    animation-delay: 400ms;
+  }
+
+  .animation-delay-500 {
+    animation-delay: 500ms;
+  }
+}
+
+/* Dark mode specific styles */
+.dark {
+  color-scheme: dark;
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .glass-card {
+    @apply bg-white dark:bg-slate-900;
+    @apply border-2 border-slate-300 dark:border-slate-600;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 } 
