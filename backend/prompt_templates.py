@@ -12,23 +12,29 @@ def get_prompt_template(mode: str, context: str, query: str) -> str:
 
 def get_civil_procedure_prompt(context: str, query: str) -> str:
     """Generate prompt for civil procedure queries with CPR context injection"""
-    return f"""You are a UK Civil Procedure Rules expert assistant. Use ONLY the retrieved CPR/PD context below to answer the query.
+    return f"""You are an expert AI legal assistant specializing in UK Civil Procedure Rules. Your task is to provide clear, accurate, and practical guidance to junior solicitors and self-represented litigants.
 
-### Retrieved CPR/PD Context
+**User Query:** "{query}"
+
+---
+
+**Retrieved Context from Official Civil Procedure Rules (CPR) and Practice Directions (PD):**
+<context>
 {context}
+</context>
 
-### Query
-{query}
+---
 
-### Instructions
-1. Answer based ONLY on the retrieved CPR/PD context above
-2. Always cite specific rule numbers (e.g., "CPR 7.5(1)", "PD 26.13")
-3. Quote or paraphrase from the retrieved snippets
-4. If a GOV.UK form is mentioned, include the direct link: https://www.gov.uk/government/publications/civil-procedure-rules-court-forms
-5. Be precise and accurate with deadlines, procedures, and requirements
-6. If the context doesn't contain relevant information, say so clearly
+**Instructions:**
 
-### Answer
+1.  **Synthesize a Comprehensive Answer:** Based **only** on the provided context, generate a detailed and easy-to-understand answer to the user's query.
+2.  **Cite Everything:** You MUST cite the specific CPR rule or Practice Direction for every statement you make (e.g., "CPR 7.5(1)", "PD 26.13"). If the context does not provide a specific rule, state that.
+3.  **Quote or Paraphrase:** Directly quote or closely paraphrase key phrases from the retrieved context to ensure accuracy.
+4.  **Structure for Clarity:** Use Markdown for clear formatting. Use headings, bullet points, and bold text to structure the answer logically. Start with a direct answer, followed by a detailed explanation.
+5.  **Identify Actionable Steps:** If the query involves a process, break it down into a step-by-step guide (e.g., "Step 1: Complete Form N244...").
+6.  **Link to Forms:** If any official forms (e.g., "Form N1") are mentioned, explicitly state the form number and provide the generic GOV.UK forms link: https://www.gov.uk/government/collections/court-and-tribunal-forms
+
+**Answer:**
 """
 
 def get_arbitration_strategy_prompt(context: str, query: str) -> str:
@@ -61,6 +67,84 @@ def get_arbitration_strategy_prompt(context: str, query: str) -> str:
 
 **Risk Assessment:**
 - Potential challenges based on adverse cases"""
+
+def get_flowchart_prompt(legal_text: str) -> str:
+    """Generate a prompt to create a Mermaid flowchart from a legal text."""
+    return f"""
+Based on the following legal explanation, create a Mermaid flowchart diagram that visualizes the process.
+
+**Legal Text:**
+{legal_text}
+
+**Instructions:**
+1. The flowchart should be a `graph TD` (top-down).
+2. Use concise node descriptions.
+3. Represent decision points with diamond shapes.
+4. The output should be ONLY the raw Mermaid code block, starting with `graph TD`.
+5. Do not include any other text or explanation.
+
+**Example:**
+graph TD
+    A[Start] --> B{{Decision}};
+    B -->|Yes| C[End];
+    B -->|No| D[Loop];
+"""
+
+def get_timeline_prompt(legal_text: str) -> str:
+    """Generate a prompt to create a list of timeline events from a legal text."""
+    return f"""
+Based on the following legal explanation, extract key events and create a timeline.
+
+**Legal Text:**
+{legal_text}
+
+**Instructions:**
+1. Identify key events with dates or deadlines.
+2. Assume the process starts today. Calculate dates accordingly.
+3. Format the output as a JSON array of objects.
+4. Each object should have: `id` (string), `title` (string), `date` (string, "YYYY-MM-DD"), `description` (string), `status` ('completed', 'pending', or 'overdue'), and `daysFromStart` (number).
+5. The output should be ONLY the raw JSON, starting with `[` and ending with `]`.
+
+**Example JSON structure:**
+[
+  {{
+    "id": "1",
+    "title": "Event 1",
+    "date": "2024-01-01",
+    "description": "Description of event 1.",
+    "status": "completed",
+    "daysFromStart": 0
+  }}
+]
+"""
+
+def get_progress_tracker_prompt(legal_text: str) -> str:
+    """Generate a prompt to create a list of progress steps from a legal text."""
+    return f"""
+Based on the following legal explanation, create a progress tracker with actionable steps.
+
+**Legal Text:**
+{legal_text}
+
+**Instructions:**
+1. Break down the legal process into actionable steps.
+2. Format the output as a JSON array of objects.
+3. Each object must have: `id` (string), `title` (string), `description` (string), `status` ('not-started', 'in-progress', 'completed', 'blocked'), and `priority` ('high', 'medium', 'low').
+4. You can optionally include `deadline` (string, "YYYY-MM-DD"), `ruleCitation` (string), and `formLink` (string).
+5. The output should be ONLY the raw JSON, starting with `[` and ending with `]`.
+
+**Example JSON structure:**
+[
+  {{
+    "id": "1",
+    "title": "Step 1",
+    "description": "Description of step 1.",
+    "status": "not-started",
+    "priority": "high",
+    "ruleCitation": "CPR 7.5"
+  }}
+]
+"""
 
 async def refine_answer(initial_answer: str, query: str, mode: str) -> str:
     """Self-refinement loop to improve answer quality"""
@@ -165,4 +249,52 @@ def validate_answer_quality(answer: str, query: str, mode: str) -> Dict[str, Any
     if not feedback['is_complete']:
         feedback['suggestions'].append("Provide more detailed analysis")
     
-    return feedback 
+    return feedback
+
+def get_argument_strength_prompt(answer: str) -> str:
+    """Generates a prompt to create radar chart metrics for argument strength."""
+    return f"""
+    Based on the following legal analysis, evaluate the strength of the arguments presented on a scale of 1-100 across several key dimensions. Provide the output as a JSON object with a 'metrics' array. Each object in the array should have a 'metric' name (e.g., "Precedent Support", "Factual Basis", "Procedural Correctness") and a 'value'.
+
+    Analysis:
+    ---
+    {answer}
+    ---
+
+    Generate the radar chart metrics in this exact JSON format:
+    ```json
+    {{
+      "metrics": [
+        {{"metric": "Precedent Support", "value": 85}},
+        {{"metric": "Factual Basis", "value": 75}},
+        {{"metric": "Legal Reasoning", "value": 90}},
+        {{"metric": "Jurisdictional Strength", "value": 80}},
+        {{"metric": "Counter-Argument Resilience", "value": 70}}
+      ]
+    }}
+    ```
+    """
+
+def get_precedent_analysis_prompt(answer: str) -> str:
+    """Generates a prompt to create detailed analysis for each precedent case."""
+    return f"""
+    For each of the legal precedents mentioned in the following analysis, provide a detailed breakdown. The output should be a JSON array, where each object contains the 'caseName', 'citation', a brief 'summary', the 'keyTakeaway', and its 'relevance' to the current issue.
+
+    Analysis:
+    ---
+    {answer}
+    ---
+
+    Generate the precedent analysis in this exact JSON format:
+    ```json
+    [
+      {{
+        "caseName": "TCW v. Dominican Republic",
+        "citation": "PCA Case No. 2008-06",
+        "summary": "A case involving a settled dispute, leading to a Consent Award.",
+        "keyTakeaway": "Demonstrates the viability and process of reaching a settlement through a Consent Award in arbitration.",
+        "relevance": "Highly relevant for considering settlement strategies to avoid protracted litigation and associated costs."
+      }}
+    ]
+    ```
+    """ 

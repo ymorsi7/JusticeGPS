@@ -471,7 +471,9 @@ const App: React.FC = () => {
                       <span>📊</span>
                       <span>Confidence Trends</span>
                     </h3>
-                    <ConfidenceTrends data={confidenceHistory} />
+                    <div className="overflow-hidden">
+                      <ConfidenceTrends data={confidenceHistory} />
+                    </div>
                   </div>
                 </div>
 

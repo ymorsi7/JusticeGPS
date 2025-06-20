@@ -22,7 +22,9 @@ from prompt_templates import (
     validate_answer_quality,
     get_flowchart_prompt,
     get_timeline_prompt,
-    get_progress_tracker_prompt
+    get_progress_tracker_prompt,
+    get_argument_strength_prompt,
+    get_precedent_analysis_prompt
 )
 
 app = FastAPI(title="JusticeGPS", version="1.0.0")
@@ -42,9 +44,9 @@ load_dotenv()
 # Initialize OpenAI client
 client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Initialize RAG systems
-cpr_rag = CPRRAGSystem()
-arbitration_rag = ArbitrationRAGSystem()
+# Initialize RAG systems with correct paths
+cpr_rag = CPRRAGSystem(data_dir="sample_data/cpr")
+arbitration_rag = ArbitrationRAGSystem(cases_file="sample_data/cases.json")
 
 class QueryRequest(BaseModel):
     query: str
@@ -61,6 +63,8 @@ class QueryResponse(BaseModel):
     session_id: str
     timelineEvents: Optional[List[Dict[str, Any]]] = None
     progressSteps: Optional[List[Dict[str, Any]]] = None
+    radarMetrics: Optional[Dict[str, Any]] = None
+    precedents: Optional[List[Dict[str, Any]]] = None
 
 @app.get("/")
 async def root():
@@ -105,6 +109,20 @@ async def query(request: QueryRequest):
             timeline_data = []
             progress_data = []
 
+        # Generate structured data for components in parallel for arbitration
+        if request.mode == "arbitration_strategy":
+            strength_prompt = get_argument_strength_prompt(llm_answer)
+            precedent_prompt = get_precedent_analysis_prompt(llm_answer)
+            
+            strength_task = asyncio.create_task(generate_structured_data(strength_prompt, is_json=True))
+            precedent_task = asyncio.create_task(generate_structured_data(precedent_prompt, is_json=True))
+
+            strength_data = await strength_task
+            precedent_data = await precedent_task
+        else:
+            strength_data = None
+            precedent_data = []
+
         # Calculate confidence and generate reasoning chain
         confidence = calculate_confidence(relevant_docs, request.query)
         reasoning_chain = generate_reasoning_chain(request.query, relevant_docs, llm_answer)
@@ -125,7 +143,9 @@ async def query(request: QueryRequest):
             "sources": relevant_docs,
             "session_id": request.session_id or f"session_{datetime.now().timestamp()}",
             "timelineEvents": timeline_data,
-            "progressSteps": progress_data
+            "progressSteps": progress_data,
+            "radarMetrics": strength_data,
+            "precedents": precedent_data
         }
         
     except Exception as e:

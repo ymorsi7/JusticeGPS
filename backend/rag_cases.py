@@ -9,8 +9,8 @@ import numpy as np
 import pickle
 
 class ArbitrationRAGSystem:
-    def __init__(self, data_dir: str = "jus_mundi_hackathon_data/cases", index_file: str = "cases_index.faiss"):
-        self.data_dir = Path(data_dir)
+    def __init__(self, cases_file: str = "sample_data/cases.json", index_file: str = "cases_index.faiss"):
+        self.cases_file = Path(cases_file)
         self.index_file = Path(index_file)
         self.cases_data = []
         self.embeddings = None
@@ -40,27 +40,27 @@ class ArbitrationRAGSystem:
         print(f"Loaded {len(self.cases_data)} cases from index")
     
     def build_index_from_files(self):
-        """Build FAISS index from JSON case files"""
-        print("Building cases index from files...")
+        """Build FAISS index from a single JSON case file"""
+        print("Building cases index from file...")
         
-        # Load all JSON files
-        json_files = list(self.data_dir.glob("*.json"))
-        print(f"Found {len(json_files)} case files")
-        
-        for file_path in json_files:
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    case_data = json.load(f)
-                
-                # Extract case information
+        if not self.cases_file.exists():
+            print(f"Cases file not found at {self.cases_file}")
+            self.cases_data = []
+            return
+
+        try:
+            with open(self.cases_file, 'r', encoding='utf-8') as f:
+                raw_cases = json.load(f)
+            print(f"Found {len(raw_cases)} cases in the JSON file.")
+
+            for case_data in raw_cases:
                 case_info = self.extract_case_info(case_data)
                 if case_info:
                     self.cases_data.append(case_info)
                     
-            except Exception as e:
-                print(f"Error processing {file_path}: {e}")
-                continue
-        
+        except Exception as e:
+            print(f"Error processing {self.cases_file}: {e}")
+
         print(f"Processed {len(self.cases_data)} cases")
         
         if not self.cases_data:
@@ -196,25 +196,27 @@ class ArbitrationRAGSystem:
         if not self.cases_data or not self.index:
             return []
         
-        # Encode query
         query_embedding = self.model.encode([query])
-        
-        # Search index
-        scores, indices = self.index.search(query_embedding.astype('float32'), k)
-        
-        # Return relevant cases
-        relevant_cases = []
-        for i, (score, idx) in enumerate(zip(scores[0], indices[0])):
+        distances, indices = self.index.search(query_embedding.astype('float32'), k)
+
+        results = []
+        for i, idx in enumerate(indices[0]):
             if idx < len(self.cases_data):
-                case = self.cases_data[idx].copy()
-                case['score'] = float(score)
+                case = self.cases_data[idx].copy()  # Create a copy to modify
+                case['relevance'] = float(distances[0][i])
+                case['score'] = 1 - float(distances[0][i])
+                
+                # Remove the embedding to prevent serialization errors
+                case.pop('embedding', None)
+                
+                # Generate a dynamic excerpt based on the query
                 case['excerpt'] = self.extract_excerpt(case['full_text'], query)
-                relevant_cases.append(case)
-        
-        return relevant_cases
+                results.append(case)
+                
+        return results
     
     def extract_excerpt(self, full_text: str, query: str, context_chars: int = 300) -> str:
-        """Extract relevant excerpt from full text"""
+        """Extract a query-relevant excerpt from the full text."""
         # Simple excerpt extraction - first 300 characters
         excerpt = full_text[:context_chars]
         if len(full_text) > context_chars:
@@ -230,4 +232,7 @@ class ArbitrationRAGSystem:
     
     def search_cases(self, query: str, k: int = 10) -> List[Dict[str, Any]]:
         """Search cases with more detailed results"""
-        return self.get_relevant_cases(query, k) 
+        return self.get_relevant_cases(query, k)
+
+    def get_all_cases(self):
+        return self.cases_data 
