@@ -53,11 +53,10 @@ class QueryResponse(BaseModel):
 async def root():
     return {"message": "JusticeGPS API - AI Assistant for Legal Analysis"}
 
-@app.post("/api/query", response_model=QueryResponse)
-async def process_query(request: QueryRequest):
-    """Process a query in the specified mode"""
+@app.post("/api/query")
+async def query(request: QueryRequest):
     try:
-        # Use the globally initialized RAG systems
+        # Use the globally initialized RAG instances
         if request.mode == "civil_procedure":
             rag_system = cpr_rag
             relevant_docs = rag_system.get_relevant_rules(request.query, k=5)
@@ -79,18 +78,27 @@ async def process_query(request: QueryRequest):
         confidence = calculate_confidence(relevant_docs, request.query)
         reasoning_chain = generate_reasoning_chain(request.query, relevant_docs, llm_answer)
         flowchart = generate_flowchart(request.mode, request.query, llm_answer)
+        
+        # Extract citations
+        citations = extract_citations(llm_answer)
+        
+        # Validate answer quality
+        quality_metrics = validate_answer_quality(llm_answer, relevant_docs)
 
-        return QueryResponse(
-            answer=llm_answer,
-            confidence=confidence,
-            sources=relevant_docs,
-            flowchart=flowchart,
-            reasoning_chain=reasoning_chain,
-            session_id=request.session_id or f"session_{datetime.now().timestamp()}"
-        )
+        return {
+            "answer": llm_answer,
+            "confidence": confidence,
+            "reasoning_chain": reasoning_chain,
+            "flowchart": flowchart,
+            "citations": citations,
+            "quality_metrics": quality_metrics,
+            "sources": relevant_docs,
+            "session_id": request.session_id or f"session_{datetime.now().timestamp()}"
+        }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error processing query: {str(e)}")
+        print(f"Error processing query: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/modes")
 async def get_modes():

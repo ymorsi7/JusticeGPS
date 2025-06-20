@@ -7,7 +7,7 @@ interface PdfPreviewProps {
 
 const PdfPreview: React.FC<PdfPreviewProps> = ({ formType, darkMode }) => {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [page, setPage] = useState<number>(1);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Mock form data - in a real implementation, this would load actual PDF forms
   const getFormContent = (formType: string) => {

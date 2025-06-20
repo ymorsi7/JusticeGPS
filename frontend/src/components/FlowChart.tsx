@@ -1,102 +1,100 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import mermaid from 'mermaid';
 
 interface FlowChartProps {
-  mermaidCode: string;
-  darkMode: boolean;
+  chartData: string | null;
+  onNodeClick?: (nodeId: string, ruleCitation: string) => void;
+  citations?: string[];
 }
 
-const FlowChart: React.FC<FlowChartProps> = ({ mermaidCode, darkMode }) => {
-  const ref = useRef<HTMLDivElement>(null);
+const FlowChart: React.FC<FlowChartProps> = ({ chartData, onNodeClick, citations = [] }) => {
+  const chartRef = useRef<HTMLDivElement>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hoveredNode, setHoveredNode] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!mermaidCode || !ref.current) return;
-
-    // Dynamically import mermaid
-    const loadMermaid = async () => {
-      try {
-        const mermaid = await import('mermaid');
-        
-        // Configure mermaid for dark/light mode
-        mermaid.default.initialize({
-          startOnLoad: false,
-          theme: darkMode ? 'dark' : 'default',
-          flowchart: {
-            useMaxWidth: true,
-            htmlLabels: true,
-            curve: 'basis',
-            nodeSpacing: 50,
-            rankSpacing: 50,
-          },
-          themeVariables: darkMode ? {
-            primaryColor: '#3b82f6',
-            primaryTextColor: '#ffffff',
-            primaryBorderColor: '#1d4ed8',
-            lineColor: '#6b7280',
-            secondaryColor: '#1f2937',
-            tertiaryColor: '#374151',
-            background: '#111827',
-            nodeTextColor: '#ffffff',
-            clusterBkg: '#1f2937',
-            clusterBorder: '#374151',
-            defaultLinkColor: '#6b7280',
-            titleColor: '#ffffff',
-            edgeLabelBackground: '#1f2937',
-            mainBkg: '#1f2937',
-            errorBkgColor: '#dc2626',
-            errorTextColor: '#ffffff',
-          } : {
-            primaryColor: '#3b82f6',
-            primaryTextColor: '#000000',
-            primaryBorderColor: '#1d4ed8',
-            lineColor: '#6b7280',
-            secondaryColor: '#f3f4f6',
-            tertiaryColor: '#e5e7eb',
-            background: '#ffffff',
-            nodeTextColor: '#000000',
-            clusterBkg: '#f9fafb',
-            clusterBorder: '#d1d5db',
-            defaultLinkColor: '#6b7280',
-            titleColor: '#000000',
-            edgeLabelBackground: '#f9fafb',
-            mainBkg: '#ffffff',
-            errorBkgColor: '#fef2f2',
-            errorTextColor: '#dc2626',
-          }
-        });
-
-        // Clear previous content
-        if (ref.current) {
-          ref.current.innerHTML = '';
-        }
-
-        // Render the flowchart
-        const { svg } = await mermaid.default.render('flowchart', mermaidCode);
-        if (ref.current) {
-          ref.current.innerHTML = svg;
-        }
-      } catch (error) {
-        console.error('Error loading mermaid:', error);
-        // Fallback: display the mermaid code as text
-        if (ref.current) {
-          ref.current.innerHTML = `
-            <div class="p-4 border rounded bg-gray-100">
-              <p class="text-sm text-gray-600 mb-2">Flowchart could not be rendered. Mermaid code:</p>
-              <pre class="text-xs overflow-x-auto">${mermaidCode}</pre>
-            </div>
-          `;
-        }
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'default',
+      flowchart: {
+        useMaxWidth: true,
+        htmlLabels: true,
+        curve: 'basis'
       }
-    };
+    });
+  }, []);
 
-    loadMermaid();
-  }, [mermaidCode, darkMode]);
+  useEffect(() => {
+    if (chartData && chartRef.current) {
+      setIsLoading(true);
+      mermaid.render('flowchart', chartData).then(({ svg }) => {
+        if (chartRef.current) {
+          chartRef.current.innerHTML = svg;
+          
+          // Add interactive functionality
+          const nodes = chartRef.current.querySelectorAll('.node');
+          nodes.forEach((node, index) => {
+            const nodeElement = node as HTMLElement;
+            const nodeId = nodeElement.id;
+            const citation = citations[index] || '';
+            
+            nodeElement.style.cursor = 'pointer';
+            nodeElement.style.transition = 'all 0.3s ease';
+            
+            nodeElement.addEventListener('click', () => {
+              if (onNodeClick) {
+                onNodeClick(nodeId, citation);
+              }
+            });
+            
+            nodeElement.addEventListener('mouseenter', () => {
+              setHoveredNode(nodeId);
+              nodeElement.style.transform = 'scale(1.05)';
+              nodeElement.style.filter = 'drop-shadow(0 4px 8px rgba(0,0,0,0.2))';
+            });
+            
+            nodeElement.addEventListener('mouseleave', () => {
+              setHoveredNode(null);
+              nodeElement.style.transform = 'scale(1)';
+              nodeElement.style.filter = 'none';
+            });
+          });
+        }
+        setIsLoading(false);
+      });
+    }
+  }, [chartData, citations, onNodeClick]);
+
+  if (!chartData) {
+    return (
+      <div className="flex items-center justify-center h-64 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+        <div className="text-center">
+          <div className="text-gray-400 text-6xl mb-4">📊</div>
+          <p className="text-gray-500">Flowchart will appear here</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="w-full overflow-x-auto">
+    <div className="relative">
+      {isLoading && (
+        <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      )}
+      
+      {hoveredNode && (
+        <div className="absolute top-0 right-0 bg-white p-3 rounded-lg shadow-lg border z-20 max-w-xs">
+          <div className="text-sm font-semibold text-gray-700 mb-1">Rule Citation</div>
+          <div className="text-xs text-gray-600">{citations.find((_, i) => `node${i}` === hoveredNode) || 'No citation available'}</div>
+        </div>
+      )}
+      
       <div 
-        ref={ref} 
-        className="flex justify-center"
-        style={{ minHeight: '200px' }}
+        ref={chartRef} 
+        className="bg-white p-4 rounded-lg border shadow-sm overflow-auto"
+        style={{ minHeight: '300px' }}
       />
     </div>
   );
