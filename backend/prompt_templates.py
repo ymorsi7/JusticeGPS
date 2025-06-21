@@ -76,7 +76,15 @@ def get_arbitration_strategy_prompt(context: str, query: str) -> str:
 - Specific improvements based on case law
 
 **Risk Assessment:**
-- Potential challenges based on adverse cases"""
+- Potential challenges based on adverse cases
+
+2.  **Synthesize a Clear Strategy:** Formulate a clear and actionable legal strategy based on the precedents.
+3.  **Perform Fact Matching:** For each precedent used, explicitly state how the facts of that case are similar to or different from the user's situation. This is a critical step.
+4.  **Structure and Cite:** Structure your response logically. Cite the case names for every point you make.
+5.  **Maintain Persona:** Be professional, clear, and authoritative.
+
+Provide only the answer to the user's query based on these instructions.
+"""
 
 def get_flowchart_prompt(legal_text: str) -> str:
     """Generate a prompt to create a Mermaid flowchart from a legal text."""
@@ -347,4 +355,34 @@ def get_strategy_rewrite_prompt(strategy: str, context: str) -> str:
     5.  **Be Bold:** The rewritten strategy should be a direct, confident, and improved version of the original.
 
     Provide only your refined strategy based on these instructions.
+    """
+
+def get_case_support_prompt(strategy: str, case_summary: str) -> str:
+    """Generates a prompt to classify if a case supports a strategy."""
+    return f"""
+    You are a legal analyst. Your task is to determine if a given legal case supports or opposes a proposed strategy.
+
+    **Proposed Strategy:**
+    ---
+    {strategy}
+    ---
+
+    **Case Summary:**
+    ---
+    {case_summary}
+    ---
+
+    **Instructions:**
+    1.  **Analyze the Case:** Compare the facts, arguments, and outcome of the case to the proposed strategy.
+    2.  **Classify Support:** Categorize the case's relevance as "Supportive", "Opposing", or "Neutral".
+    3.  **Provide Justification:** Write a one-sentence justification for your classification.
+    4.  **Format Output:** Return a JSON object with two keys: "classification" and "justification".
+
+    Example Output:
+    ```json
+    {{
+      "classification": "Supportive",
+      "justification": "The tribunal's reasoning in this case directly upholds the principle of regulatory authority, which is central to the proposed strategy."
+    }}
+    ```
     """ 

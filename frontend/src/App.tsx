@@ -42,6 +42,12 @@ interface QueryResponse {
     score: number;
     full_text: string;
     url?: string;
+    case_name?: string;
+    status?: string;
+    support?: {
+      classification: 'Supportive' | 'Opposing' | 'Neutral' | 'Unknown';
+      justification: string;
+    };
   }>;
   session_id: string;
   timelineEvents?: Array<any>;
@@ -465,6 +471,7 @@ const App: React.FC = () => {
                           <tr>
                             <th scope="col" className="px-6 py-3">Case Name</th>
                             <th scope="col" className="px-6 py-3">Status</th>
+                            <th scope="col" className="px-6 py-3">Support</th>
                             <th scope="col" className="px-6 py-3">Relevance</th>
                           </tr>
                         </thead>
@@ -475,6 +482,9 @@ const App: React.FC = () => {
                                 <a href={source.url || '#'} target="_blank" rel="noopener noreferrer" className="hover:underline">{source.case_name}</a>
                               </th>
                               <td className="px-6 py-4">{source.status}</td>
+                              <td className="px-6 py-4">
+                                <SupportBadge support={source.support} />
+                              </td>
                               <td className="px-6 py-4">{(source.score * 100).toFixed(0)}%</td>
                             </tr>
                           ))}
@@ -543,6 +553,33 @@ const App: React.FC = () => {
           onSettings={handleSettings}
         />
       </main>
+    </div>
+  );
+};
+
+const SupportBadge = ({ support }: { support?: { classification: string; justification: string } }) => {
+  if (!support) return <span className="badge-neutral">Unknown</span>;
+
+  const { classification, justification } = support;
+
+  const baseClasses = "px-2.5 py-0.5 rounded-full text-xs font-semibold relative group";
+  
+  const colorClasses = {
+    'Supportive': "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300",
+    'Opposing': "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300",
+    'Neutral': "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300",
+    'Unknown': "bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-300"
+  };
+
+  const badgeClass = colorClasses[classification] || colorClasses['Unknown'];
+
+  return (
+    <div className={`${baseClasses} ${badgeClass}`}>
+      {classification}
+      <div className="absolute bottom-full mb-2 w-72 p-2 bg-slate-800 text-white text-xs rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 pointer-events-none">
+        {justification}
+        <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-slate-800"></div>
+      </div>
     </div>
   );
 };

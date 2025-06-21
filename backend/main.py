@@ -26,6 +26,7 @@ from prompt_templates import (
     get_argument_strength_prompt,
     get_precedent_analysis_prompt,
     get_strategy_rewrite_prompt,
+    get_case_support_prompt,
 )
 
 app = FastAPI(title="JusticeGPS", version="1.0.0")
@@ -108,6 +109,18 @@ async def query(request: QueryRequest):
             form_url = get_form_url(form_name)
             # Clean the tag from the final answer
             llm_answer = llm_answer.replace(form_match.group(0), f"({form_name})")
+
+        # 2. Classify case support for arbitration mode
+        if request.mode == "arbitration_strategy":
+            support_analysis_tasks = []
+            for doc in relevant_docs:
+                support_prompt = get_case_support_prompt(request.query, doc['summary'])
+                support_analysis_tasks.append(generate_structured_data(support_prompt, is_json=True))
+            
+            support_results = await asyncio.gather(*support_analysis_tasks)
+
+            for i, doc in enumerate(relevant_docs):
+                doc['support'] = support_results[i] if i < len(support_results) else {"classification": "Unknown", "justification": ""}
 
         # Generate structured data for components in parallel for civil procedure
         if request.mode == "civil_procedure":
