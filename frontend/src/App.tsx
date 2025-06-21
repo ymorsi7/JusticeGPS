@@ -48,6 +48,7 @@ interface QueryResponse {
       classification: 'Supportive' | 'Opposing' | 'Neutral' | 'Unknown';
       justification: string;
     };
+    summary: string;
   }>;
   session_id: string;
   timelineEvents?: Array<any>;
@@ -204,7 +205,7 @@ const App: React.FC = () => {
         },
         body: JSON.stringify({
           strategy: response.answer,
-          context: response.sources.map(s => s.full_text).join('\\n\\n')
+          context: response.sources.map(s => s.summary).join('\\n\\n')
         }),
       });
 

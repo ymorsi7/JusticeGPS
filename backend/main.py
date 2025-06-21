@@ -282,7 +282,7 @@ def calculate_confidence(sources: List[Dict[str, Any]], query: str) -> float:
     query_terms = set(query.lower().split())
     text_match_boost = 0.0
     for source in sources:
-        source_text = source.get('content', '').lower()
+        source_text = source.get('full_text', '').lower()
         if any(term in source_text for term in query_terms):
             text_match_boost += 0.01
     
@@ -298,7 +298,7 @@ def generate_reasoning_chain(query: str, sources: List[Dict[str, Any]], answer: 
     ]
     
     for i, source in enumerate(sources[:3]):  # Limit to top 3 sources
-        chain.append(f"Source {i+1}: {source.get('title', 'Unknown source')}")
+        chain.append(f"Source {i+1}: {source.get('case_name', 'Unknown source')}")
     
     chain.append("Applied legal reasoning framework")
     chain.append("Generated comprehensive response")

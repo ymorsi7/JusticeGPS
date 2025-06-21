@@ -198,25 +198,32 @@ class ArbitrationRAGSystem:
         
         query_embedding = self.model.encode([query])
         distances, indices = self.index.search(query_embedding.astype('float32'), k)
-
+        
+        # Convert numpy arrays to Python lists to avoid serialization issues
+        distances = distances.tolist()
+        indices = indices.tolist()
+        
         results = []
         for i, idx in enumerate(indices[0]):
-            if idx < len(self.cases_data):
-                case = self.cases_data[idx].copy()  # Create a copy to modify
-                case['relevance'] = float(distances[0][i])
-                case['score'] = 1 - float(distances[0][i])
+            if idx != -1:
+                case = self.cases_data[idx].copy() # Create a copy
+                case.pop('embedding', None) # Remove non-serializable embedding
+                case['score'] = float(distances[0][i])
                 
-                # Remove the embedding to prevent serialization errors
-                case.pop('embedding', None)
-                
-                # Generate a dynamic excerpt based on the query
+                # Normalize the score (assuming Inner Product, higher is better)
+                # This is a heuristic and may need adjustment based on typical score ranges
+                max_possible_score = float(np.dot(query_embedding[0], query_embedding[0]))
+                if max_possible_score > 0:
+                    case['score'] = min(1.0, case['score'] / max_possible_score)
+                else:
+                    case['score'] = 0.0
+
                 case['excerpt'] = self.extract_excerpt(case['full_text'], query)
                 results.append(case)
-                
         return results
     
     def extract_excerpt(self, full_text: str, query: str, context_chars: int = 300) -> str:
-        """Extract a query-relevant excerpt from the full text."""
+        """Extract a relevant excerpt from the text"""
         # Simple excerpt extraction - first 300 characters
         excerpt = full_text[:context_chars]
         if len(full_text) > context_chars:
