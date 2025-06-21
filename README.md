@@ -1,19 +1,10 @@
-# JusticeGPS 🏛️⚖️
+# JusticeGPS 🏛️⚖️ (Hack the Law 2025 @ Cambridge)
 
 **AI-Powered Legal Analysis Assistant for UK Civil Procedure & International Arbitration**
 
 JusticeGPS is a comprehensive web application that addresses both sponsor challenges:
 - **vLex Challenge**: AI assistant for UK Civil Procedure Rules (CPR) and Practice Directions
 - **CodeX × Jus Mundi Challenge**: Arbitration Strategy Analyzer for Kronos environmental counterclaim
-
-## 🏆 WIN CRITERIA ACHIEVED
-
-- ✅ **25/25 Score**: Problem, Solution, Technology, Transformation, Impression
-- ✅ **One-command build**: `bash ai_build.sh` with zero manual fixes
-- ✅ **Full test suite**: PyTest + LLM evaluation achieving ≥95% accuracy
-- ✅ **AI-generated**: Complete application built by AI
-- ✅ **No external secrets**: Mock data used, real API keys can be plugged later
-- ✅ **All imports resolve**: Tests green, UI responsive and mobile-friendly
 
 ## 🚀 Quick Start
 
@@ -145,7 +136,7 @@ JusticeGPS/
 ### Environment Variables
 ```bash
 # LLM API Configuration
-LLM_API_KEY=your_api_key_here
+LLM_API_KEY=your_api_key_here # I used OpenAI
 LLM_MODEL=gemini-pro  # or gpt-4
 
 # Backend Configuration
@@ -238,19 +229,6 @@ docker-compose up
 - ✅ Strategic weakness identification
 - ✅ Precedent heat-map visualization
 - ✅ Risk assessment capabilities
-
-## 🤝 Contributing
-
-This is a competition submission. For questions or issues:
-1. Check the test results first
-2. Review the build logs
-3. Ensure all dependencies are installed
-4. Verify the sample data is present
-
-## 📄 License
-
-This project is created for the vLex and CodeX × Jus Mundi challenges.
-
 ---
 
 **🏆 JusticeGPS - Ready to Win Both Challenges! 🏆**
