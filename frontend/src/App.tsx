@@ -19,6 +19,7 @@ import NotificationToast from './components/NotificationToast';
 import ParticleBackground from './components/ParticleBackground';
 import FloatingActionButton from './components/FloatingActionButton';
 import PdfPreview from './components/PdfPreview';
+import LegalBreakdownModal from './components/LegalBreakdownModal';
 
 interface QueryResponse {
   answer: string;
@@ -59,6 +60,13 @@ interface QueryResponse {
   formUrl?: string;
 }
 
+interface BreakdownData {
+  global_summary: string;
+  claimant_arguments: string;
+  respondent_arguments: string;
+  tribunal_reasoning: string;
+}
+
 const App: React.FC = () => {
   const [mode, setMode] = useState<'civil_procedure' | 'arbitration_strategy'>('civil_procedure');
   const [query, setQuery] = useState('');
@@ -75,6 +83,12 @@ const App: React.FC = () => {
   }>>([]);
   const [conversationHistory, setConversationHistory] = useState<Array<{role: string, content: string}>>([]);
   const [rewrittenStrategy, setRewrittenStrategy] = useState<string | null>(null);
+
+  // Legal Breakdown Modal State
+  const [isBreakdownLoading, setIsBreakdownLoading] = useState(false);
+  const [showBreakdownModal, setShowBreakdownModal] = useState(false);
+  const [selectedCaseName, setSelectedCaseName] = useState<string | null>(null);
+  const [breakdownData, setBreakdownData] = useState<BreakdownData | null>(null);
 
   // Notification state
   const [notification, setNotification] = useState<{
@@ -188,6 +202,35 @@ const App: React.FC = () => {
       showNotification('Network error. Please check your connection.', 'error');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleLegalBreakdown = async (caseName: string) => {
+    setSelectedCaseName(caseName);
+    setShowBreakdownModal(true);
+    setIsBreakdownLoading(true);
+    setBreakdownData(null);
+
+    try {
+      const apiResponse = await fetch('http://localhost:8000/api/legal-breakdown', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ case_name: caseName }),
+      });
+
+      if (apiResponse.ok) {
+        const data = await apiResponse.json();
+        setBreakdownData(data);
+      } else {
+        showNotification('Failed to load case breakdown.', 'error');
+        setShowBreakdownModal(false);
+      }
+    } catch (error) {
+      console.error('Error fetching legal breakdown:', error);
+      showNotification('Network error during breakdown.', 'error');
+      setShowBreakdownModal(false);
+    } finally {
+      setIsBreakdownLoading(false);
     }
   };
 
@@ -511,9 +554,13 @@ const App: React.FC = () => {
                         </thead>
                         <tbody>
                           {response.sources.map((source, index) => (
-                            <tr key={index} className="bg-white border-b dark:bg-slate-800 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600">
+                            <tr
+                              key={index}
+                              className="bg-white border-b dark:bg-slate-800 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600 cursor-pointer"
+                              onClick={() => handleLegalBreakdown(source.case_name!)}
+                            >
                               <th scope="row" className="px-6 py-4 font-medium text-slate-900 dark:text-white whitespace-nowrap">
-                                <a href={source.url || '#'} target="_blank" rel="noopener noreferrer" className="hover:underline">{source.case_name}</a>
+                                <span className="hover:underline">{source.case_name}</span>
                               </th>
                               <td className="px-6 py-4">{source.status}</td>
                               <td className="px-6 py-4">
@@ -587,6 +634,14 @@ const App: React.FC = () => {
           onSettings={handleSettings}
         />
       </main>
+
+      <LegalBreakdownModal
+        show={showBreakdownModal}
+        onClose={() => setShowBreakdownModal(false)}
+        caseName={selectedCaseName || ''}
+        breakdown={breakdownData}
+        isLoading={isBreakdownLoading}
+      />
     </div>
   );
 };

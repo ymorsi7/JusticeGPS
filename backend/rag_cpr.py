@@ -216,7 +216,7 @@ class CPRRAGSystem:
                 'excerpt': excerpt,
                 'score': round(score, 3),
                 'full_text': rule['full_text'],
-                'url': rule['url']
+                'url': rule.get('url', '')
             }
             
             results.append(result)

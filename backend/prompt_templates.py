@@ -333,56 +333,58 @@ def get_precedent_analysis_prompt(answer: str) -> str:
     """
 
 def get_strategy_rewrite_prompt(strategy: str, context: str) -> str:
-    """Generates a prompt to rewrite an arbitration strategy."""
-    return f"""
-    You are a world-class legal strategist specializing in international arbitration. You are tasked with refining a proposed legal strategy to make it stronger, safer, and more likely to succeed.
+    return f"""You are an expert legal strategist. Your task is to rewrite a given legal strategy to make it stronger, more persuasive, and safer.
 
-    **Original Strategy:**
-    ---
+    Original Strategy:
     {strategy}
-    ---
 
-    **Relevant Case Law Context:**
-    ---
+    Context from relevant case law:
     {context}
-    ---
 
-    **Instructions:**
-    1.  **Analyze Weaknesses:** Identify potential vulnerabilities, risks, or gaps in the original strategy.
-    2.  **Suggest Improvements:** Propose concrete improvements, alternative arguments, or additional evidence to consider.
-    3.  **Incorporate Precedent:** Use the provided case law context to support your suggestions.
-    4.  **Structure the Output:** Present your analysis clearly with "Critique" and "Suggested Rewrite" sections.
-    5.  **Be Bold:** The rewritten strategy should be a direct, confident, and improved version of the original.
-
-    Provide only your refined strategy based on these instructions.
+    Rewrite the strategy, incorporating insights from the provided case law. The new strategy should be clear, concise, and highly effective.
     """
 
-def get_case_support_prompt(strategy: str, case_summary: str) -> str:
-    """Generates a prompt to classify if a case supports a strategy."""
+def get_case_support_prompt(case_text: str, user_query: str) -> str:
+    """
+    A prompt to determine if a case is supportive or adverse to a user's query/strategy.
+    """
     return f"""
-    You are a legal analyst. Your task is to determine if a given legal case supports or opposes a proposed strategy.
+    Analyze the following legal case text in the context of the user's query.
+    Based on the reasoning and outcome of the case, determine if it is "Supportive", "Opposing", or "Neutral" to the user's position.
+    Provide a brief justification for your determination.
 
-    **Proposed Strategy:**
+    User's Query/Strategy: "{user_query}"
+
+    Case Text:
     ---
-    {strategy}
+    {case_text[:8000]}
     ---
 
-    **Case Summary:**
-    ---
-    {case_summary}
-    ---
-
-    **Instructions:**
-    1.  **Analyze the Case:** Compare the facts, arguments, and outcome of the case to the proposed strategy.
-    2.  **Classify Support:** Categorize the case's relevance as "Supportive", "Opposing", or "Neutral".
-    3.  **Provide Justification:** Write a one-sentence justification for your classification.
-    4.  **Format Output:** Return a JSON object with two keys: "classification" and "justification".
-
-    Example Output:
-    ```json
+    Your analysis should be in the following JSON format:
     {{
-      "classification": "Supportive",
-      "justification": "The tribunal's reasoning in this case directly upholds the principle of regulatory authority, which is central to the proposed strategy."
+      "classification": "Supportive" | "Opposing" | "Neutral",
+      "justification": "A brief explanation of why the case is classified this way, citing specific aspects of the case text."
     }}
-    ```
+    """
+
+def get_legal_breakdown_prompt(case_text: str) -> str:
+    """
+    A prompt to generate a detailed breakdown of a legal case.
+    """
+    return f"""
+    You are a highly skilled legal analyst. Your task is to read the following legal case document and provide a structured, detailed breakdown.
+
+    Legal Case Document:
+    ---
+    {case_text[:12000]}
+    ---
+
+    Please extract the following information and present it in a clear JSON format.
+
+    - "global_summary": Provide a concise, neutral summary of the entire case, including the dispute, the key issues, and the final outcome.
+    - "claimant_arguments": Summarize the main arguments and positions presented by the claimant(s).
+    - "respondent_arguments": Summarize the main arguments and positions presented by the respondent(s).
+    - "tribunal_reasoning": Detail the tribunal's reasoning, analysis, and the legal principles it applied to reach its conclusion.
+
+    Your response must be a single JSON object with the keys "global_summary", "claimant_arguments", "respondent_arguments", and "tribunal_reasoning".
     """ 

@@ -7,3 +7,9 @@
 /.venv
 .env
 /.env
+cases_index.pkl
+cpr_index.pkl
+cpr_index.faiss
+cpr_data
+jus_mundi_hackathon_data
+cases_data_new.pkl

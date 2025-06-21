@@ -27,7 +27,9 @@ from prompt_templates import (
     get_precedent_analysis_prompt,
     get_strategy_rewrite_prompt,
     get_case_support_prompt,
+    get_legal_breakdown_prompt,
 )
+from utils import generate_structured_data, call_llm
 
 app = FastAPI(title="JusticeGPS", version="1.0.0")
 
@@ -48,7 +50,7 @@ client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Initialize RAG systems with correct paths
 cpr_rag = CPRRAGSystem(data_dir="sample_data/cpr")
-arbitration_rag = ArbitrationRAGSystem(cases_file="sample_data/cases.json")
+arbitration_rag = ArbitrationRAGSystem(cases_dir="jus_mundi_hackathon_data/cases")
 
 class QueryRequest(BaseModel):
     query: str
@@ -74,56 +76,33 @@ class RewriteRequest(BaseModel):
     strategy: str
     context: str
 
+class LegalBreakdownRequest(BaseModel):
+    case_name: str
+
 @app.get("/")
 async def root():
     return {"message": "JusticeGPS API - AI Assistant for Legal Analysis"}
 
-@app.post("/api/query")
+@app.post("/api/query", response_model=QueryResponse)
 async def query(request: QueryRequest):
     try:
-        # Use the globally initialized RAG instances
         if request.mode == "civil_procedure":
-            rag_system = cpr_rag
-            relevant_docs = rag_system.get_relevant_rules(request.query, k=5)
-            context = "\n\n".join([f"**CPR {rule['rule_number']} - {rule['heading']}**\n{rule['excerpt']}" for rule in relevant_docs]) if relevant_docs else "No relevant CPR rules found."
-            prompt = get_civil_procedure_prompt(context, request.query, request.conversation_history)
-            
-        elif request.mode == "arbitration_strategy":
-            rag_system = arbitration_rag
-            relevant_docs = rag_system.get_relevant_cases(request.query, k=7)
-            context = "\n\n".join([f"**[{case['case_name']}]** {case['summary']}" for case in relevant_docs]) if relevant_docs else "No relevant cases found."
-            prompt = get_arbitration_strategy_prompt(context, request.query)
-        else:
-            raise HTTPException(status_code=400, detail="Invalid mode specified")
+            # Synchronous path for CPR
+            relevant_docs = cpr_rag.get_relevant_rules(request.query)
+            prompt = get_civil_procedure_prompt(relevant_docs, request.query, request.conversation_history)
+        else:  # arbitration_strategy
+            # Asynchronous path for Arbitration
+            relevant_docs = await arbitration_rag.get_relevant_cases(request.query)
+            prompt = get_arbitration_strategy_prompt(relevant_docs, request.query)
 
-        # Call the real LLM
+        # Common logic for answer generation
         llm_answer = await call_llm(prompt)
-        
-        # --- Post-processing for stretch goals ---
-        
-        # 1. Extract form links
-        form_url = None
-        form_match = re.search(r'\[FORM:\s*([^\]]+)\]', llm_answer)
-        if form_match:
-            form_name = form_match.group(1)
-            form_url = get_form_url(form_name)
-            # Clean the tag from the final answer
-            llm_answer = llm_answer.replace(form_match.group(0), f"({form_name})")
 
-        # 2. Classify case support for arbitration mode
-        if request.mode == "arbitration_strategy":
-            support_analysis_tasks = []
-            for doc in relevant_docs:
-                support_prompt = get_case_support_prompt(request.query, doc['summary'])
-                support_analysis_tasks.append(generate_structured_data(support_prompt, is_json=True))
-            
-            support_results = await asyncio.gather(*support_analysis_tasks)
+        # Initialize structured data
+        flowchart_data, timeline_data, progress_data, strength_data, precedent_data, form_url = None, [], [], None, [], None
 
-            for i, doc in enumerate(relevant_docs):
-                doc['support'] = support_results[i] if i < len(support_results) else {"classification": "Unknown", "justification": ""}
-
-        # Generate structured data for components in parallel for civil procedure
         if request.mode == "civil_procedure":
+            # For civil procedure, generate structured data based on the answer
             flowchart_prompt = get_flowchart_prompt(llm_answer)
             timeline_prompt = get_timeline_prompt(llm_answer)
             progress_prompt = get_progress_tracker_prompt(llm_answer)
@@ -140,20 +119,6 @@ async def query(request: QueryRequest):
             timeline_data = []
             progress_data = []
 
-        # Generate structured data for components in parallel for arbitration
-        if request.mode == "arbitration_strategy":
-            strength_prompt = get_argument_strength_prompt(llm_answer)
-            precedent_prompt = get_precedent_analysis_prompt(llm_answer)
-            
-            strength_task = asyncio.create_task(generate_structured_data(strength_prompt, is_json=True))
-            precedent_task = asyncio.create_task(generate_structured_data(precedent_prompt, is_json=True))
-
-            strength_data = await strength_task
-            precedent_data = await precedent_task
-        else:
-            strength_data = None
-            precedent_data = []
-
         # Calculate confidence and generate reasoning chain
         confidence = calculate_confidence(relevant_docs, request.query)
         reasoning_chain = generate_reasoning_chain(request.query, relevant_docs, llm_answer)
@@ -164,6 +129,32 @@ async def query(request: QueryRequest):
         # Validate answer quality
         quality_metrics = validate_answer_quality(llm_answer, request.query, request.mode)
 
+        # Defensive fix: ensure every source is a dict and has a 'url' key
+        processed_sources = []
+        for source in relevant_docs:
+            if not isinstance(source, dict):
+                source = {}
+            if 'url' not in source:
+                source['url'] = ''
+            processed_source = {
+                'rule_number': source.get('rule_number', ''),
+                'heading': source.get('heading', ''),
+                'part': source.get('part', ''),
+                'part_title': source.get('part_title', ''),
+                'excerpt': source.get('excerpt', ''),
+                'score': source.get('score', 0.0),
+                'full_text': source.get('full_text', ''),
+                'url': source.get('url', ''),
+                'case_name': source.get('case_name', ''),
+                'status': source.get('status', ''),
+                'support': source.get('support', {
+                    'classification': 'Unknown',
+                    'justification': 'No analysis available'
+                }),
+                'summary': source.get('summary', '')
+            }
+            processed_sources.append(processed_source)
+
         return {
             "answer": llm_answer,
             "confidence": confidence,
@@ -171,7 +162,7 @@ async def query(request: QueryRequest):
             "flowchart": flowchart_data,
             "citations": citations,
             "quality_metrics": quality_metrics,
-            "sources": relevant_docs,
+            "sources": processed_sources,
             "session_id": request.session_id or f"session_{datetime.now().timestamp()}",
             "timelineEvents": timeline_data,
             "progressSteps": progress_data,
@@ -211,6 +202,20 @@ async def rewrite_strategy(request: RewriteRequest):
         print(f"Error rewriting strategy: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/legal-breakdown")
+async def legal_breakdown(request: LegalBreakdownRequest):
+    try:
+        case_data = arbitration_rag.get_case_by_name(request.case_name)
+        if not case_data:
+            raise HTTPException(status_code=404, detail="Case not found")
+
+        prompt = get_legal_breakdown_prompt(case_data['full_text'])
+        breakdown = await generate_structured_data(prompt, is_json=True)
+        return breakdown
+    except Exception as e:
+        print(f"Error generating legal breakdown: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/sample-questions/{mode}")
 async def get_sample_questions(mode: str):
     if mode == "civil_procedure":
@@ -235,22 +240,6 @@ async def get_sample_questions(mode: str):
         }
     else:
         raise HTTPException(status_code=400, detail="Invalid mode")
-
-async def call_llm(prompt: str) -> str:
-    """Calls the OpenAI API to get a response."""
-    try:
-        response = await client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a helpful legal assistant."},
-                {"role": "user", "content": prompt},
-            ],
-            temperature=0.2,
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        print(f"Error calling LLM: {e}")
-        raise
 
 def calculate_confidence(sources: List[Dict[str, Any]], query: str) -> float:
     """
@@ -305,33 +294,6 @@ def generate_reasoning_chain(query: str, sources: List[Dict[str, Any]], answer: 
     chain.append("Performed self-refinement for accuracy")
     
     return chain
-
-async def generate_structured_data(prompt: str, is_json: bool = True):
-    """Generic function to call LLM and get structured data (JSON or text)."""
-    try:
-        response_text = await call_llm(prompt)
-        if is_json:
-            # The LLM might return the JSON within a code block, so we need to extract it.
-            json_match = re.search(r'```json\n(.*)\n```', response_text, re.DOTALL)
-            if json_match:
-                response_text = json_match.group(1)
-            
-            # The LLM sometimes forgets the outer brackets for a list of objects
-            if response_text.strip().startswith('{'):
-                response_text = f'[{response_text.strip()}]'
-                
-            return json.loads(response_text)
-        
-        # For mermaid chart, strip markdown fences
-        mermaid_match = re.search(r'```(?:mermaid)?\n(.*?)\n```', response_text, re.DOTALL)
-        if mermaid_match:
-            response_text = mermaid_match.group(1)
-
-        return response_text.strip()
-    except Exception as e:
-        print(f"Error generating structured data: {e}")
-        # Return empty list for JSON or empty string for text on error
-        return [] if is_json else ""
 
 # --- Form URL Utility ---
 def get_form_url(form_name: str) -> Optional[str]:
