@@ -7,6 +7,23 @@ from sentence_transformers import SentenceTransformer
 import faiss
 import numpy as np
 import pickle
+from langchain.text_splitter import MarkdownTextSplitter
+
+def get_cpr_url(part: str, rule: str) -> str:
+    """Constructs a URL to a specific CPR rule on the justice.gov.uk website."""
+    base_url = "https://www.justice.gov.uk/courts/procedure-rules/civil/rules"
+    
+    # Part numbers in URLs are typically zero-padded (e.g., part07)
+    part_number = re.sub(r'\D', '', part)
+    if part_number.isdigit():
+        part_formatted = f"part{int(part_number):02d}"
+    else:
+        # Fallback for non-numeric parts
+        part_formatted = part.lower().replace(" ", "")
+
+    rule_anchor = rule.replace('.', '-')
+    
+    return f"{base_url}/{part_formatted}#{rule_anchor}"
 
 class CPRRAGSystem:
     def __init__(self, data_dir: str = "cpr_data", index_file: str = "cpr_index.faiss"):
@@ -16,6 +33,7 @@ class CPRRAGSystem:
         self.embeddings = None
         self.index = None
         self.model = SentenceTransformer("all-MiniLM-L6-v2")
+        self.text_splitter = MarkdownTextSplitter()
         self.load_and_index_rules()
 
     def load_and_index_rules(self):
@@ -112,7 +130,8 @@ class CPRRAGSystem:
                 'rule_number': rule_number,
                 'heading': heading,
                 'full_text': full_text,
-                'context': context
+                'context': context,
+                'url': get_cpr_url(part_num, rule_number)
             }
             
             rules.append(rule_data)
@@ -196,7 +215,8 @@ class CPRRAGSystem:
                 'part_title': rule['part_title'],
                 'excerpt': excerpt,
                 'score': round(score, 3),
-                'full_text': rule['full_text']
+                'full_text': rule['full_text'],
+                'url': rule['url']
             }
             
             results.append(result)

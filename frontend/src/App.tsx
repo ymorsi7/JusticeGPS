@@ -18,6 +18,7 @@ import LoadingSpinner from './components/LoadingSpinner';
 import NotificationToast from './components/NotificationToast';
 import ParticleBackground from './components/ParticleBackground';
 import FloatingActionButton from './components/FloatingActionButton';
+import PdfPreview from './components/PdfPreview';
 
 interface QueryResponse {
   answer: string;
@@ -40,6 +41,7 @@ interface QueryResponse {
     excerpt: string;
     score: number;
     full_text: string;
+    url?: string;
   }>;
   session_id: string;
   timelineEvents?: Array<any>;
@@ -47,6 +49,7 @@ interface QueryResponse {
   formFields?: Array<any>;
   radarMetrics?: Array<any>;
   precedents?: Array<any>;
+  formUrl?: string;
 }
 
 const App: React.FC = () => {
@@ -63,6 +66,8 @@ const App: React.FC = () => {
     label: string;
     trigger: string;
   }>>([]);
+  const [conversationHistory, setConversationHistory] = useState<Array<{role: string, content: string}>>([]);
+  const [rewrittenStrategy, setRewrittenStrategy] = useState<string | null>(null);
 
   // Notification state
   const [notification, setNotification] = useState<{
@@ -119,6 +124,9 @@ const App: React.FC = () => {
     setIsLoading(true);
     showNotification('Processing your query...', 'info');
     
+    // Add user's query to history before sending
+    const updatedHistory = [...conversationHistory, { role: 'user', content: query }];
+
     try {
       const response = await fetch('http://localhost:8000/api/query', {
         method: 'POST',
@@ -128,7 +136,8 @@ const App: React.FC = () => {
         body: JSON.stringify({
           query,
           mode,
-          session_id: Date.now().toString()
+          session_id: Date.now().toString(),
+          conversation_history: updatedHistory,
         }),
       });
 
@@ -136,6 +145,9 @@ const App: React.FC = () => {
         const data = await response.json();
         setResponse(data);
         
+        // Add AI response to history
+        setConversationHistory([...updatedHistory, { role: 'assistant', content: data.answer }]);
+
         // Add to confidence history
         const newPoint = {
           timestamp: Date.now(),
@@ -167,6 +179,39 @@ const App: React.FC = () => {
     } catch (error) {
       console.error('Error submitting query:', error);
       showNotification('Network error. Please check your connection.', 'error');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRewriteStrategy = async () => {
+    if (!response) return;
+
+    setIsLoading(true);
+    showNotification('Rewriting strategy...', 'info');
+
+    try {
+      const apiResponse = await fetch('http://localhost:8000/api/rewrite-strategy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          strategy: response.answer,
+          context: response.sources.map(s => s.full_text).join('\\n\\n')
+        }),
+      });
+
+      if (apiResponse.ok) {
+        const data = await apiResponse.json();
+        setRewrittenStrategy(data.rewritten_strategy);
+        showNotification('Strategy rewritten!', 'success');
+      } else {
+        showNotification('Failed to rewrite strategy.', 'error');
+      }
+    } catch (error) {
+      console.error('Error rewriting strategy:', error);
+      showNotification('Network error during strategy rewrite.', 'error');
     } finally {
       setIsLoading(false);
     }
@@ -390,7 +435,7 @@ const App: React.FC = () => {
             {mode === 'arbitration_strategy' && response && response.radarMetrics && response.radarMetrics.metrics && (
                <div className="glass-card p-6 animate-fade-in-up animation-delay-300">
                  <h2 className="text-xl font-bold gradient-text mb-4">Case Analysis</h2>
-                 <RadarChart metrics={response.radarMetrics.metrics} />
+                 <RadarChart metrics={response.radarMetrics.metrics} chanceOfSuccess={response.radarMetrics.chanceOfSuccess} />
                </div>
             )}
 
@@ -408,40 +453,88 @@ const App: React.FC = () => {
               </div>
             )}
 
-            {/* Sources and Citations */}
             {response && response.sources && response.sources.length > 0 && (
               <div className="animate-fade-in-up animation-delay-500">
                 <div className="glass-card p-8">
-                  <h3 className="text-xl font-semibold mb-6 text-slate-800 dark:text-slate-100 flex items-center space-x-2">
-                    <span>📚</span>
-                    <span>Sources & Citations</span>
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {response.sources.map((source, index) => (
-                      <div key={index} className="glass-card p-4 card-hover">
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="badge font-semibold">{source.rule_number}</span>
-                          <span className="text-sm text-slate-500 dark:text-slate-400">
-                            {Math.round(source.score * 100)}% relevant
-                          </span>
+                  <h2 className="text-xl font-bold gradient-text mb-4">Sources & Citations</h2>
+                  
+                  {mode === 'arbitration_strategy' ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm text-left text-slate-500 dark:text-slate-400">
+                        <thead className="text-xs text-slate-700 uppercase bg-slate-50 dark:bg-slate-700 dark:text-slate-300">
+                          <tr>
+                            <th scope="col" className="px-6 py-3">Case Name</th>
+                            <th scope="col" className="px-6 py-3">Status</th>
+                            <th scope="col" className="px-6 py-3">Relevance</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {response.sources.map((source, index) => (
+                            <tr key={index} className="bg-white border-b dark:bg-slate-800 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-600">
+                              <th scope="row" className="px-6 py-4 font-medium text-slate-900 dark:text-white whitespace-nowrap">
+                                <a href={source.url || '#'} target="_blank" rel="noopener noreferrer" className="hover:underline">{source.case_name}</a>
+                              </th>
+                              <td className="px-6 py-4">{source.status}</td>
+                              <td className="px-6 py-4">{(source.score * 100).toFixed(0)}%</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {response.sources.map((source, index) => (
+                        <div key={index} className="glass-card p-4 card-hover">
+                          <a href={source.url || '#'} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                            <div className="font-bold text-primary-600 dark:text-primary-400">
+                              {source.rule_number}: {source.heading || 'N/A'}
+                            </div>
+                          </a>
+                          <div className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                            Relevance: {(source.score * 100).toFixed(0)}%
+                          </div>
+                          <p className="text-xs text-slate-500 dark:text-slate-500 mt-2 truncate">
+                            {source.excerpt}
+                          </p>
                         </div>
-                        <h4 className="font-semibold text-slate-800 dark:text-slate-100 mb-2">
-                          {source.heading}
-                        </h4>
-                        <p className="text-sm text-slate-600 dark:text-slate-300 mb-2">
-                          {source.part_title}
-                        </p>
-                        <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">
-                          {source.excerpt}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
+              </div>
+            )}
+
+            {response && response.formUrl && (
+              <div className="glass-card p-6 animate-fade-in-up animation-delay-300">
+                <h2 className="text-xl font-bold gradient-text mb-4">Referenced Form</h2>
+                <PdfPreview fileUrl={response.formUrl} />
               </div>
             )}
           </div>
         </div>
+
+        {/* Strategy Rewriter Section */}
+        {mode === 'arbitration_strategy' && response && (
+          <div className="mt-8 animate-fade-in-up animation-delay-600">
+             <div className="glass-card p-8">
+                <h2 className="text-2xl font-bold gradient-text mb-4 text-center">AI Strategy Assistant</h2>
+                <div className="max-w-2xl mx-auto">
+                  <CounterStrategyGenerator 
+                    onGenerate={handleRewriteStrategy}
+                    isLoading={isLoading}
+                  />
+                  {rewrittenStrategy && (
+                    <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-700">
+                       <h3 className="font-semibold text-slate-800 dark:text-slate-100 text-lg">Suggested Improvement:</h3>
+                       <p className="text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap mt-2 prose prose-slate dark:prose-invert max-w-none">
+                         {rewrittenStrategy}
+                       </p>
+                    </div>
+                  )}
+                </div>
+             </div>
+          </div>
+        )}
 
         {/* Floating Action Button */}
         <FloatingActionButton

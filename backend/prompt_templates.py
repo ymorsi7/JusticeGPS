@@ -1,4 +1,4 @@
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import re
 
 def get_prompt_template(mode: str, context: str, query: str) -> str:
@@ -10,32 +10,42 @@ def get_prompt_template(mode: str, context: str, query: str) -> str:
     else:
         raise ValueError(f"Unknown mode: {mode}")
 
-def get_civil_procedure_prompt(context: str, query: str) -> str:
-    """Generate prompt for civil procedure queries with CPR context injection"""
-    return f"""You are an expert AI legal assistant specializing in UK Civil Procedure Rules. Your task is to provide clear, accurate, and practical guidance to junior solicitors and self-represented litigants.
+def get_civil_procedure_prompt(
+    context: str, 
+    query: str, 
+    history: Optional[List[Dict[str, str]]] = None
+) -> str:
+    """Generates a comprehensive prompt for civil procedure queries, including conversation history."""
+    
+    history_str = ""
+    if history:
+        for turn in history:
+            history_str += f"{turn['role'].title()}: {turn['content']}\n"
+            
+    return f"""
+    You are JusticeGPS, a world-class AI legal assistant specializing in the UK Civil Procedure Rules (CPR). Your role is to provide precise, actionable, and well-cited guidance to legal professionals.
 
-**User Query:** "{query}"
+    **Conversation History:**
+    {history_str}
 
----
+    **Current Question:**
+    {query}
 
-**Retrieved Context from Official Civil Procedure Rules (CPR) and Practice Directions (PD):**
-<context>
-{context}
-</context>
+    **Relevant CPR Context:**
+    <context>
+    {context}
+    </context>
 
----
+    **Instructions:**
+    1.  **Analyze the Question:** Carefully consider the user's current question in the context of the conversation history.
+    2.  **Synthesize the Answer:** Formulate a clear, accurate, and comprehensive answer based on the provided CPR context.
+    3.  **Structure and Cite:** Structure your response logically with headings and bullet points. **Crucially, you must cite the specific CPR rules (e.g., CPR 7.5) and Practice Directions (e.g., PD 7A) for every point you make.**
+    4.  **Provide Actionable Steps:** Offer a step-by-step procedural guide where applicable.
+    5.  **Identify and Link Forms:** If any official forms (e.g., Form N244, Form N1) are relevant, explicitly mention them and embed a link using the format `[FORM: N244]`. Do not use markdown links. This is critical.
+    6.  **Maintain Persona:** Be professional, clear, and authoritative.
 
-**Instructions:**
-
-1.  **Synthesize a Comprehensive Answer:** Based **only** on the provided context, generate a detailed and easy-to-understand answer to the user's query.
-2.  **Cite Everything:** You MUST cite the specific CPR rule or Practice Direction for every statement you make (e.g., "CPR 7.5(1)", "PD 26.13"). If the context does not provide a specific rule, state that.
-3.  **Quote or Paraphrase:** Directly quote or closely paraphrase key phrases from the retrieved context to ensure accuracy.
-4.  **Structure for Clarity:** Use Markdown for clear formatting. Use headings, bullet points, and bold text to structure the answer logically. Start with a direct answer, followed by a detailed explanation.
-5.  **Identify Actionable Steps:** If the query involves a process, break it down into a step-by-step guide (e.g., "Step 1: Complete Form N244...").
-6.  **Link to Forms:** If any official forms (e.g., "Form N1") are mentioned, explicitly state the form number and provide the generic GOV.UK forms link: https://www.gov.uk/government/collections/court-and-tribunal-forms
-
-**Answer:**
-"""
+    Provide only the answer to the user's query based on these instructions.
+    """
 
 def get_arbitration_strategy_prompt(context: str, query: str) -> str:
     """Generate prompt for arbitration strategy queries with case context injection"""
@@ -88,6 +98,11 @@ graph TD
     A[Start] --> B{{Decision}};
     B -->|Yes| C[End];
     B -->|No| D[Loop];
+
+2.  **Use Simple Labels:** Node and edge labels must be simple strings. **Do NOT use parentheses `()` or other special characters in labels.** For example, use "CPR 7-5" instead of "CPR 7.5(1)".
+3.  **Follow the Format:** Adhere strictly to the Mermaid `graph TD` syntax.
+
+Based on the analysis below, generate a Mermaid flowchart.
 """
 
 def get_timeline_prompt(legal_text: str) -> str:
@@ -254,7 +269,7 @@ def validate_answer_quality(answer: str, query: str, mode: str) -> Dict[str, Any
 def get_argument_strength_prompt(answer: str) -> str:
     """Generates a prompt to create radar chart metrics for argument strength."""
     return f"""
-    Based on the following legal analysis, evaluate the strength of the arguments presented on a scale of 1-100 across several key dimensions. Provide the output as a JSON object with a 'metrics' array. Each object in the array should have a 'name' (e.g., "Precedent Support"), a 'value', and a 'color' in hex format.
+    Based on the following legal analysis, evaluate the strength of the arguments presented on a scale of 1-100 across several key dimensions. Provide the output as a JSON object with a 'metrics' array. Each object in the array should have a 'name' (e.g., "Precedent Support"), a 'value', and a 'color' in hex format. Also include a 'chanceOfSuccess' metric from 0-100.
 
     Analysis:
     ---
@@ -270,7 +285,8 @@ def get_argument_strength_prompt(answer: str) -> str:
         {{"name": "Legal Reasoning", "value": 90, "color": "#ef4444"}},
         {{"name": "Jurisdictional Strength", "value": 80, "color": "#f97316"}},
         {{"name": "Counter-Argument Resilience", "value": 70, "color": "#8b5cf6"}}
-      ]
+      ],
+      "chanceOfSuccess": 78
     }}
     ```
     """
@@ -278,7 +294,14 @@ def get_argument_strength_prompt(answer: str) -> str:
 def get_precedent_analysis_prompt(answer: str) -> str:
     """Generates a prompt to create detailed analysis for each precedent case."""
     return f"""
-    For each of the legal precedents mentioned in the following analysis, provide a detailed breakdown. The output should be a JSON array, where each object contains the 'caseName', 'citation', a brief 'summary', the 'keyTakeaway', and its 'relevance' to the current issue.
+    For each of the legal precedents mentioned in the following analysis, provide a detailed breakdown. The output should be a JSON array, where each object contains:
+    - 'caseName'
+    - 'citation'
+    - 'summary'
+    - 'claimantArgument'
+    - 'respondentArgument'
+    - 'tribunalReasoning'
+    - 'relevance'
 
     Analysis:
     ---
@@ -291,10 +314,37 @@ def get_precedent_analysis_prompt(answer: str) -> str:
       {{
         "caseName": "TCW v. Dominican Republic",
         "citation": "PCA Case No. 2008-06",
-        "summary": "A case involving a settled dispute, leading to a Consent Award.",
-        "keyTakeaway": "Demonstrates the viability and process of reaching a settlement through a Consent Award in arbitration.",
-        "relevance": "Highly relevant for considering settlement strategies to avoid protracted litigation and associated costs."
+        "summary": "A case involving a settled dispute over an energy project, leading to a Consent Award.",
+        "claimantArgument": "TCW argued that the Dominican Republic's actions amounted to an expropriation of their investment.",
+        "respondentArgument": "The Dominican Republic contended that its actions were legitimate regulatory measures and not expropriation.",
+        "tribunalReasoning": "The tribunal did not rule on the merits as the parties reached a settlement. The reasoning for the Consent Award was based on the parties' mutual agreement.",
+        "relevance": "Demonstrates the viability of settlement in arbitration. Highly relevant for considering settlement strategies to avoid protracted litigation."
       }}
     ]
     ```
+    """
+
+def get_strategy_rewrite_prompt(strategy: str, context: str) -> str:
+    """Generates a prompt to rewrite an arbitration strategy."""
+    return f"""
+    You are a world-class legal strategist specializing in international arbitration. You are tasked with refining a proposed legal strategy to make it stronger, safer, and more likely to succeed.
+
+    **Original Strategy:**
+    ---
+    {strategy}
+    ---
+
+    **Relevant Case Law Context:**
+    ---
+    {context}
+    ---
+
+    **Instructions:**
+    1.  **Analyze Weaknesses:** Identify potential vulnerabilities, risks, or gaps in the original strategy.
+    2.  **Suggest Improvements:** Propose concrete improvements, alternative arguments, or additional evidence to consider.
+    3.  **Incorporate Precedent:** Use the provided case law context to support your suggestions.
+    4.  **Structure the Output:** Present your analysis clearly with "Critique" and "Suggested Rewrite" sections.
+    5.  **Be Bold:** The rewritten strategy should be a direct, confident, and improved version of the original.
+
+    Provide only your refined strategy based on these instructions.
     """ 

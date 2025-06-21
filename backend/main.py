@@ -24,7 +24,8 @@ from prompt_templates import (
     get_timeline_prompt,
     get_progress_tracker_prompt,
     get_argument_strength_prompt,
-    get_precedent_analysis_prompt
+    get_precedent_analysis_prompt,
+    get_strategy_rewrite_prompt,
 )
 
 app = FastAPI(title="JusticeGPS", version="1.0.0")
@@ -53,6 +54,7 @@ class QueryRequest(BaseModel):
     mode: str  # "civil_procedure" or "arbitration_strategy"
     session_id: Optional[str] = None
     voice_input: Optional[bool] = False
+    conversation_history: Optional[List[Dict[str, str]]] = None
 
 class QueryResponse(BaseModel):
     answer: str
@@ -65,6 +67,11 @@ class QueryResponse(BaseModel):
     progressSteps: Optional[List[Dict[str, Any]]] = None
     radarMetrics: Optional[Dict[str, Any]] = None
     precedents: Optional[List[Dict[str, Any]]] = None
+    formUrl: Optional[str] = None
+
+class RewriteRequest(BaseModel):
+    strategy: str
+    context: str
 
 @app.get("/")
 async def root():
@@ -78,7 +85,7 @@ async def query(request: QueryRequest):
             rag_system = cpr_rag
             relevant_docs = rag_system.get_relevant_rules(request.query, k=5)
             context = "\n\n".join([f"**CPR {rule['rule_number']} - {rule['heading']}**\n{rule['excerpt']}" for rule in relevant_docs]) if relevant_docs else "No relevant CPR rules found."
-            prompt = get_civil_procedure_prompt(context, request.query)
+            prompt = get_civil_procedure_prompt(context, request.query, request.conversation_history)
             
         elif request.mode == "arbitration_strategy":
             rag_system = arbitration_rag
@@ -91,6 +98,17 @@ async def query(request: QueryRequest):
         # Call the real LLM
         llm_answer = await call_llm(prompt)
         
+        # --- Post-processing for stretch goals ---
+        
+        # 1. Extract form links
+        form_url = None
+        form_match = re.search(r'\[FORM:\s*([^\]]+)\]', llm_answer)
+        if form_match:
+            form_name = form_match.group(1)
+            form_url = get_form_url(form_name)
+            # Clean the tag from the final answer
+            llm_answer = llm_answer.replace(form_match.group(0), f"({form_name})")
+
         # Generate structured data for components in parallel for civil procedure
         if request.mode == "civil_procedure":
             flowchart_prompt = get_flowchart_prompt(llm_answer)
@@ -145,7 +163,8 @@ async def query(request: QueryRequest):
             "timelineEvents": timeline_data,
             "progressSteps": progress_data,
             "radarMetrics": strength_data,
-            "precedents": precedent_data
+            "precedents": precedent_data,
+            "formUrl": form_url
         }
         
     except Exception as e:
@@ -168,6 +187,16 @@ async def get_modes():
             }
         ]
     }
+
+@app.post("/api/rewrite-strategy")
+async def rewrite_strategy(request: RewriteRequest):
+    try:
+        prompt = get_strategy_rewrite_prompt(request.strategy, request.context)
+        rewritten_strategy = await call_llm(prompt)
+        return {"rewritten_strategy": rewritten_strategy}
+    except Exception as e:
+        print(f"Error rewriting strategy: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/sample-questions/{mode}")
 async def get_sample_questions(mode: str):
@@ -290,6 +319,22 @@ async def generate_structured_data(prompt: str, is_json: bool = True):
         print(f"Error generating structured data: {e}")
         # Return empty list for JSON or empty string for text on error
         return [] if is_json else ""
+
+# --- Form URL Utility ---
+def get_form_url(form_name: str) -> Optional[str]:
+    """
+    Finds the GOV.UK URL for a given court form.
+    This is a simplified stub. A real implementation would use a database or a more robust search.
+    """
+    form_name_cleaned = form_name.strip().upper()
+    # Common forms mapping
+    form_map = {
+        "N1": "https://www.gov.uk/government/publications/form-n1-claim-form-cpr-part-7",
+        "N9": "https://www.gov.uk/government/publications/form-n9-response-pack",
+        "N244": "https://www.gov.uk/government/publications/form-n244-application-notice",
+        "N181": "https://www.gov.uk/government/publications/form-n181-directions-questionnaire-small-claims-track",
+    }
+    return form_map.get(form_name_cleaned)
 
 if __name__ == "__main__":
     import uvicorn

@@ -9,9 +9,10 @@ interface RadarMetric {
 interface RadarChartProps {
   metrics: RadarMetric[];
   title?: string;
+  chanceOfSuccess: number;
 }
 
-const RadarChart: React.FC<RadarChartProps> = ({ metrics, title = "Argument Strength Analysis" }) => {
+const RadarChart: React.FC<RadarChartProps> = ({ metrics, title = "Argument Strength Analysis", chanceOfSuccess }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -144,9 +145,23 @@ const RadarChart: React.FC<RadarChartProps> = ({ metrics, title = "Argument Stre
           style={{ width: '300px', height: '300px' }}
         />
       </div>
+
+      {/* Chance of Success Gauge */}
+      <div className="mt-4">
+        <div className="flex justify-between items-center mb-1">
+          <span className="text-sm font-semibold text-gray-700">Chance of Success</span>
+          <span className={`text-lg font-bold ${getScoreColor(chanceOfSuccess)}`}>{chanceOfSuccess}%</span>
+        </div>
+        <div className="w-full bg-gray-200 rounded-full h-2.5">
+          <div 
+            className={`h-2.5 rounded-full ${getScoreColor(chanceOfSuccess).replace('text-', 'bg-')}`} 
+            style={{ width: `${chanceOfSuccess}%` }}
+          ></div>
+        </div>
+      </div>
       
       {/* Metrics Legend */}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2 mt-4">
         {metrics.map((metric) => (
           <div key={metric.name} className="flex items-center space-x-2">
             <div 
