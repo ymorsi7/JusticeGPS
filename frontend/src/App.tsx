@@ -435,6 +435,39 @@ const App: React.FC = () => {
                 <CaseTimeline events={response.timelineEvents} />
               </div>
             )}
+
+            {showExplainability && response && (
+              <div className="glass-card p-6 animate-fade-in-up animation-delay-200">
+                <h2 className="text-xl font-bold gradient-text mb-4">AI Reasoning</h2>
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="font-semibold text-slate-800 dark:text-slate-100">Reasoning Chain:</h3>
+                    <ul className="list-disc list-inside text-slate-600 dark:text-slate-400 text-sm space-y-1 mt-2">
+                      {response.reasoning_chain.map((step, index) => (
+                        <li key={index}>{step}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-slate-800 dark:text-slate-100">Quality Metrics:</h3>
+                    <ul className="list-disc list-inside text-slate-600 dark:text-slate-400 text-sm space-y-1 mt-2">
+                      <li>Citations Included: {response.quality_metrics.has_citations ? 'Yes' : 'No'}</li>
+                      <li>Well-Structured: {response.quality_metrics.has_structure ? 'Yes' : 'No'}</li>
+                      <li>Actionable Guidance: {response.quality_metrics.has_practical_guidance ? 'Yes' : 'No'}</li>
+                      <li>Complete Answer: {response.quality_metrics.is_complete ? 'Yes' : 'No'}</li>
+                    </ul>
+                    {response.quality_metrics.suggestions.length > 0 && (
+                       <div>
+                         <h4 className="font-semibold text-slate-700 dark:text-slate-200 mt-2">Suggestions:</h4>
+                         <ul className="list-disc list-inside text-slate-600 dark:text-slate-400 text-sm space-y-1 mt-1">
+                          {response.quality_metrics.suggestions.map((s, i) => <li key={i}>{s}</li>)}
+                         </ul>
+                       </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Right Sidebar */}
